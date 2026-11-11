@@ -54,12 +54,22 @@ Sur une base déjà installée, ne pas relancer `schema.sql` : coller le contenu
 `supabase/patches/2026-11-11_visibilite.sql` dans *SQL Editor*, puis *Run* (une seule fois, sans danger si répété).
 Le site lit désormais les signalements par la vue `tickets_feed`, qui masque l'auteur et le détail des logements des autres.
 
+## Corbeille et journal (11/11/2026)
+
+Deuxième patch, à lancer après le premier : `supabase/patches/2026-11-11_corbeille_journal.sql`
+(*SQL Editor*, *Run*, une seule fois ; sans danger si répété).
+« Supprimer » place l'incident dans une corbeille que seul le Conseil syndical voit
+(bouton *Historique*) : il peut le restaurer ou le supprimer définitivement. Un journal
+(`ticket_log`) garde les créations, changements de statut, ordres de service, suppressions,
+restaurations et suppressions définitives. Le titre est effacé du journal à la suppression définitive.
+
 ## Tester les règles en local
 
 ```sh
 psql -f supabase/tests/00_faux_supabase_local.sql      # crée la base ftest et un faux schéma auth
 psql -d ftest -v ON_ERROR_STOP=1 -f supabase/schema.sql
 psql -d ftest -f supabase/tests/01_regles_acces.sql    # règles d'origine (lecture des signalements : voir 02)
-# (pour 02 : relancer d'abord les deux premières commandes, sur une base neuve)
+# (pour 02 et 03 : relancer d'abord les deux premières commandes, sur une base neuve)
 psql -d ftest -f supabase/tests/02_visibilite.sql      # visibilité du 11/11/2026 ; les ERROR affichées sont les refus attendus
+psql -d ftest -f supabase/tests/03_corbeille_journal.sql  # corbeille, restauration, journal
 ```
