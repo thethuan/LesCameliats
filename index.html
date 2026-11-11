@@ -661,7 +661,9 @@ function showLogin(msg){
     <div class="field"><label for="sMail">Adresse e-mail</label><input id="sMail" type="email" autocomplete="email" inputmode="email" placeholder="prenom.nom@exemple.fr"></div>
     <p class="err" id="lErr" hidden></p>
     <button class="btn primary" type="submit">Recevoir un lien de connexion</button>
-   </form>`);
+   </form>
+   <p class="ro" style="text-align:center;margin:14px 0 10px">ou</p>
+   <button class="btn" type="button" id="bGoogle" style="width:100%;justify-content:center">Continuer avec Google</button>`);
   $("#fLog").onsubmit=async e=>{e.preventDefault();
     const email=$("#sMail").value.trim().toLowerCase(),err=m=>{$("#lErr").textContent=m;$("#lErr").hidden=false;};
     if(!/^\S+@\S+\.\S+$/.test(email)) return err("Saisissez une adresse e-mail valide.");
@@ -670,6 +672,10 @@ function showLogin(msg){
     if(error){btn.disabled=false;btn.textContent="Recevoir un lien de connexion";
       return err(/rate|seconds|limit/i.test(error.message)?"Trop de demandes rapprochées. Patientez une minute puis réessayez.":"L'envoi a échoué. Vérifiez l'adresse et votre connexion.");}
     showSent(email);
+  };
+  $("#bGoogle").onclick=async()=>{
+    const {error}=await sb.auth.signInWithOAuth({provider:"google",options:{redirectTo:location.origin+location.pathname}});
+    if(error){$("#lErr").textContent="La connexion avec Google a échoué. Utilisez votre adresse e-mail.";$("#lErr").hidden=false;}
   };
 }
 function showSent(email){
@@ -759,7 +765,7 @@ function openPrivacy(){
     <h3>Quelles données ?</h3><ul><li>Votre adresse e-mail, votre nom, votre qualité (copropriétaire, locataire…), votre cage, votre étage et votre logement.</li><li>Les signalements que vous déclarez : lieu, titre, description, date et nom de l'auteur.</li></ul>
     <h3>Pour quoi faire ?</h3><p>Uniquement pour signaler et suivre les problèmes techniques de l'immeuble. Aucune publicité, aucune revente, aucun outil de mesure d'audience. Ce traitement repose sur l'intérêt légitime de la copropriété à entretenir l'immeuble.</p>
     <h3>Qui y a accès ?</h3><ul><li>Le Conseil syndical et le syndic voient tous les signalements et la liste des comptes.</li><li>Un résident voit les parties communes, les parkings, les caves et les signalements de son propre logement. Les signalements des autres logements lui sont masqués.</li><li>Un prestataire ne voit que les signalements de sa spécialité.</li></ul>
-    <h3>Où sont-elles conservées ?</h3><p>Dans une base de données hébergée par Supabase, dans l'Union européenne. Les pages de l'application sont servies par GitHub Pages, qui ne reçoit aucune de ces données. Un jeton de session est gardé dans ce navigateur pour vous éviter de vous reconnecter.</p>
+    <h3>Où sont-elles conservées ?</h3><p>Dans une base de données hébergée par Supabase, dans l'Union européenne. Les pages de l'application sont servies par GitHub Pages, qui ne reçoit aucune de ces données. L'envoi des e-mails de connexion est assuré par Brevo, société française. Si vous choisissez « Continuer avec Google », Google transmet à l'application votre adresse e-mail et votre nom pour vous identifier ; sinon, Google n'intervient pas. Un jeton de session est gardé dans ce navigateur pour vous éviter de vous reconnecter.</p>
     <h3>Combien de temps ?</h3><p>Votre compte est supprimé à votre demande ou à votre départ de la résidence. Les signalements sont conservés le temps utile au suivi technique de l'immeuble, puis supprimés par le Conseil syndical.</p>
     <h3>Vos droits</h3><p>Vous pouvez demander l'accès à vos données, leur rectification ou leur effacement en vous adressant à ${c}. Vous pouvez aussi saisir la CNIL (cnil.fr).</p>
    </div>
