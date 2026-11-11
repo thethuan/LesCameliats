@@ -1,0 +1,935 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex,nofollow">
+<title>Fellini Suivi Technique</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;700;800&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@500&display=swap">
+<style>
+/* Layout : bandeau supérieur, rail des 9 niveaux à gauche, plan au centre, registre des signalements à droite. Empilé sur téléphone. */
+:root{
+  --bg:#F2F3F8; --surface:#FFFFFF; --surface-2:#ECEEF5; --fg:#1A1E2C; --muted:#5A6177; --line:#D9DCE7;
+  --accent:#4F46E5; --accent-soft:#E6E5FD; --accent-ink:#FFFFFF;
+  --reported:#DC2626; --progress:#D97706; --resolved:#16A34A;
+  --reported-soft:#FDE7E7; --progress-soft:#FCEFD9; --resolved-soft:#DDF5E5;
+  --warn-bg:#FFF6E0; --warn-fg:#7A4E00;
+  --plan-ground:#FFFFFF; --shadow:0 1px 2px rgba(20,24,40,.06),0 6px 20px rgba(20,24,40,.06);
+  --f-display:"Archivo","Segoe UI",system-ui,sans-serif;
+  --f-body:"Inter",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --f-mono:"JetBrains Mono",ui-monospace,"SFMono-Regular",Menlo,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#10121A; --surface:#181B26; --surface-2:#212534; --fg:#E6E8F1; --muted:#9BA2B8; --line:#2D3243;
+  --accent:#8C86FF; --accent-soft:#2A2858; --accent-ink:#0E0F18;
+  --reported:#F05252; --progress:#F2A93B; --resolved:#3FC77A;
+  --reported-soft:#3A1E22; --progress-soft:#3A2D17; --resolved-soft:#173325;
+  --warn-bg:#352A12; --warn-fg:#F6D58C;
+  --plan-ground:#F4F5F9; --shadow:0 1px 2px rgba(0,0,0,.3),0 6px 20px rgba(0,0,0,.25);
+  color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#10121A; --surface:#181B26; --surface-2:#212534; --fg:#E6E8F1; --muted:#9BA2B8; --line:#2D3243;
+  --accent:#8C86FF; --accent-soft:#2A2858; --accent-ink:#0E0F18;
+  --reported:#F05252; --progress:#F2A93B; --resolved:#3FC77A;
+  --reported-soft:#3A1E22; --progress-soft:#3A2D17; --resolved-soft:#173325;
+  --warn-bg:#352A12; --warn-fg:#F6D58C;
+  --plan-ground:#F4F5F9; --shadow:0 1px 2px rgba(0,0,0,.3),0 6px 20px rgba(0,0,0,.25);
+  color-scheme:dark}
+*{box-sizing:border-box}
+html,body{min-height:100%}
+body{background:var(--bg);color:var(--fg);font-family:var(--f-body);font-size:14px;line-height:1.45}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:30;background:var(--surface)}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+h1,h2,h3{font-family:var(--f-display);text-wrap:balance;margin:0}
+.mono{font-family:var(--f-mono);font-size:.86em}
+
+/* Bandeau */
+.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:20;background:var(--surface);border-bottom:1px solid var(--line)}
+.top-in{display:flex;flex-wrap:wrap;align-items:center;gap:10px 16px;padding-block:10px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.brand{display:flex;align-items:center;gap:10px;margin-right:auto;min-width:0}
+.brand svg{flex:none}
+.brand h1{font-size:17px;font-weight:800;letter-spacing:-.01em;line-height:1.1}
+.brand small{display:block;color:var(--muted);font-size:12px;font-family:var(--f-body)}
+.who{display:flex;align-items:center;gap:8px}
+.who label{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
+.who select{background:var(--surface-2);border:1px solid var(--line);border-radius:8px;padding:7px 10px;max-width:260px}
+.actions{display:flex;gap:6px;flex-wrap:wrap}
+.btn{border:1px solid var(--line);background:var(--surface);border-radius:8px;padding:7px 12px;font-weight:500;display:inline-flex;align-items:center;gap:6px;position:relative}
+.btn:hover{background:var(--surface-2)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.btn.primary:hover{filter:brightness(1.07)}
+.btn.danger{color:var(--reported);border-color:color-mix(in srgb,var(--reported) 40%,var(--line))}
+.btn.ghost{border-color:transparent;background:transparent}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.badge{position:absolute;top:-6px;right:-6px;background:var(--reported);color:#fff;border-radius:99px;font-size:11px;font-weight:700;min-width:18px;height:18px;display:grid;place-items:center;padding:0 5px}
+
+.notice{display:flex;gap:10px;align-items:flex-start;background:var(--warn-bg);color:var(--warn-fg);padding-block:8px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));font-size:13px;border-bottom:1px solid var(--line)}
+.notice b{font-weight:600}
+
+/* Grille principale */
+.main{display:grid;grid-template-columns:190px minmax(0,1fr) 370px;gap:16px;padding-block:16px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));align-items:start}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:12px}
+
+/* Rail des niveaux */
+.levels{padding:8px;display:flex;flex-direction:column;gap:2px;position:sticky;top:calc(env(safe-area-inset-top,0px) + 76px)}
+.levels h2{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);padding:6px 8px 8px;font-family:var(--f-body);font-weight:600}
+.lvl{display:grid;grid-template-columns:34px 1fr auto;align-items:center;gap:8px;border:0;background:transparent;text-align:left;padding:7px 8px;border-radius:8px}
+.lvl:hover{background:var(--surface-2)}
+.lvl[aria-current="true"]{background:var(--accent-soft)}
+.lvl .idx{font-family:var(--f-display);font-weight:800;font-size:15px;text-align:center;font-variant-numeric:tabular-nums;color:var(--muted)}
+.lvl[aria-current="true"] .idx{color:var(--accent)}
+.lvl .nm{font-weight:600;font-size:13px;line-height:1.2}
+.lvl .nm small{display:block;font-weight:400;color:var(--muted);font-size:11px}
+.cnt{font-size:11px;font-weight:700;border-radius:99px;padding:1px 7px;background:var(--reported-soft);color:var(--reported);font-variant-numeric:tabular-nums}
+.cnt.zero{background:transparent;color:var(--muted);font-weight:500}
+
+/* Plan */
+.plan-card{padding:14px;display:flex;flex-direction:column;gap:12px;min-width:0}
+.plan-head{display:flex;flex-wrap:wrap;gap:10px 14px;align-items:center;justify-content:space-between}
+.plan-head h2{font-size:22px;font-weight:800;letter-spacing:-.01em}
+.plan-head p{margin:2px 0 0;color:var(--muted);font-size:13px}
+.tools{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.seg{display:inline-flex;background:var(--surface-2);border:1px solid var(--line);border-radius:8px;padding:2px}
+.seg button{border:0;background:transparent;padding:5px 9px;border-radius:6px;font-size:12.5px;font-weight:500;color:var(--muted)}
+.seg button[aria-pressed="true"]{background:var(--surface);color:var(--fg);box-shadow:var(--shadow)}
+.seg-label{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-right:2px}
+.plan-scroll{overflow:auto;border-radius:10px;border:1px solid var(--line);background:var(--plan-ground);max-height:72vh}
+.plan-wrap{position:relative;aspect-ratio:1376/768;width:100%;cursor:crosshair;user-select:none;-webkit-user-select:none;touch-action:manipulation}
+.plan-wrap canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
+.pins{position:absolute;inset:0}
+.pin{position:absolute;width:26px;height:26px;transform:translate(-50%,-100%);border:0;padding:0;background:transparent;cursor:pointer}
+.pin::before{content:"";position:absolute;inset:0;border-radius:50% 50% 50% 0;transform:rotate(-45deg);background:var(--c);border:2px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,.35)}
+.pin span{position:relative;display:block;color:#fff;font:700 10px/26px var(--f-body);text-align:center;margin-top:-2px;font-variant-numeric:tabular-nums}
+.pin.reported{--c:#DC2626}.pin.in_progress{--c:#D97706}.pin.resolved{--c:#16A34A}
+.pin.sel::before{border-color:#111;outline:3px solid rgba(79,70,229,.55)}
+.pin.temp{--c:#DC2626;pointer-events:none}
+.pin.temp::after{content:"";position:absolute;left:50%;bottom:-6px;width:14px;height:14px;margin-left:-7px;border-radius:50%;background:rgba(220,38,38,.45);animation:pulse 1.2s ease-out infinite}
+@keyframes pulse{from{transform:scale(.6);opacity:1}to{transform:scale(2.6);opacity:0}}
+@media (prefers-reduced-motion:reduce){.pin.temp::after{animation:none}}
+.legend{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:12px;color:var(--muted);align-items:center}
+.legend i{display:inline-block;width:12px;height:12px;border-radius:3px;vertical-align:-2px;margin-right:5px;border:1.5px solid}
+.hint{font-size:12.5px;color:var(--muted)}
+
+/* Registre */
+.side{display:flex;flex-direction:column;gap:12px;min-width:0}
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:0;padding:4px}
+.kpi{padding:10px 8px;text-align:center}
+.kpi+.kpi{border-left:1px solid var(--line)}
+.kpi b{display:block;font-family:var(--f-display);font-size:24px;font-weight:800;font-variant-numeric:tabular-nums;line-height:1.1}
+.kpi span{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em}
+.kpi.k-rep b{color:var(--reported)}.kpi.k-pro b{color:var(--progress)}.kpi.k-res b{color:var(--resolved)}
+.list-card{display:flex;flex-direction:column;min-width:0}
+.list-head{padding:12px 12px 8px;display:flex;flex-direction:column;gap:8px;border-bottom:1px solid var(--line)}
+.list-head .row{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap}
+.list-head h2{font-size:15px;font-weight:700}
+.chips{display:flex;gap:6px;flex-wrap:wrap}
+.chip{border:1px solid var(--line);background:var(--surface);border-radius:99px;padding:3px 10px;font-size:12px;font-weight:500;color:var(--muted)}
+.chip[aria-pressed="true"]{background:var(--fg);color:var(--bg);border-color:var(--fg)}
+.list{list-style:none;margin:0;padding:6px;max-height:62vh;overflow:auto}
+.item{display:grid;grid-template-columns:30px minmax(0,1fr);gap:10px;padding:10px 8px;border-radius:8px;cursor:pointer;border:1px solid transparent}
+.item:hover{background:var(--surface-2)}
+.item.sel{border-color:var(--accent);background:var(--accent-soft)}
+.num{width:28px;height:28px;border-radius:50%;display:grid;place-items:center;color:#fff;font-weight:700;font-size:11px;font-variant-numeric:tabular-nums}
+.num.reported{background:var(--reported)}.num.in_progress{background:var(--progress)}.num.resolved{background:var(--resolved)}
+.item h3{font-family:var(--f-body);font-size:13.5px;font-weight:600;line-height:1.3}
+.meta{display:flex;flex-wrap:wrap;gap:4px 8px;font-size:12px;color:var(--muted);margin-top:3px;align-items:center}
+.pill{display:inline-block;border-radius:99px;padding:1px 8px;font-size:11px;font-weight:600}
+.pill.reported{background:var(--reported-soft);color:var(--reported)}
+.pill.in_progress{background:var(--progress-soft);color:var(--progress)}
+.pill.resolved{background:var(--resolved-soft);color:var(--resolved)}
+.tag{display:inline-block;border:1px solid var(--line);border-radius:6px;padding:0 6px;font-size:11px;color:var(--muted);background:var(--surface-2)}
+.tag.priv{border-color:color-mix(in srgb,var(--accent) 45%,var(--line));color:var(--accent)}
+.urg-high{color:var(--reported);font-weight:600}
+.empty{padding:28px 16px;text-align:center;color:var(--muted)}
+
+/* Feuille modale */
+.scrim{position:fixed;inset:0;background:rgba(10,12,20,.45);z-index:40;display:flex;justify-content:flex-end}
+.sheet{background:var(--surface);width:min(460px,100%);height:100%;overflow:auto;padding:20px max(20px,env(safe-area-inset-right,0px)) calc(20px + env(safe-area-inset-bottom,0px)) 20px;padding-top:calc(20px + env(safe-area-inset-top,0px));display:flex;flex-direction:column;gap:14px;box-shadow:-10px 0 40px rgba(0,0,0,.2)}
+.sheet.wide{width:min(640px,100%)}
+.sheet-head{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}
+.sheet-head h2{font-size:20px;font-weight:800}
+.sheet-head p{margin:4px 0 0;color:var(--muted);font-size:13px}
+.x{border:0;background:var(--surface-2);border-radius:8px;width:32px;height:32px;font-size:18px;line-height:1;flex:none}
+.field{display:flex;flex-direction:column;gap:5px}
+.field>label,.flabel{font-size:12px;font-weight:600;color:var(--muted)}
+.field input,.field select,.field textarea{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:8px 10px;width:100%}
+.field textarea{min-height:84px;resize:vertical}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.detect{background:var(--accent-soft);border-radius:8px;padding:8px 10px;font-size:12.5px}
+.err{color:var(--reported);font-size:12.5px;font-weight:500}
+.ok{color:var(--resolved);font-size:12.5px;font-weight:500}
+.foot{display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;margin-top:auto;padding-top:6px}
+.dl{display:grid;grid-template-columns:120px minmax(0,1fr);gap:8px 12px;font-size:13px;margin:0}
+.dl dt{color:var(--muted)}
+.dl dd{margin:0;min-width:0;overflow-wrap:anywhere}
+.box{border:1px solid var(--line);border-radius:10px;padding:12px;display:flex;flex-direction:column;gap:10px}
+.box h3{font-size:13px;font-family:var(--f-body);font-weight:700}
+.ro{font-size:12px;color:var(--muted)}
+.req{display:flex;flex-direction:column;gap:8px;border:1px solid var(--line);border-radius:10px;padding:10px 12px}
+.req .acts{display:flex;gap:6px;flex-wrap:wrap}
+.preview{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px;max-height:300px;overflow:auto}
+.preview li{border:1px solid var(--line);border-radius:8px;padding:7px 10px;font-size:12.5px}
+.preview li.skip{opacity:.55;text-decoration:line-through;text-decoration-thickness:1px}
+.preview li b{font-weight:600}
+textarea.code{font-family:var(--f-mono);font-size:12px;min-height:170px}
+.sso{display:flex;flex-direction:column;gap:8px}
+.sso .btn{justify-content:center;padding:10px}
+.sep{display:flex;align-items:center;gap:8px;color:var(--muted);font-size:12px}
+.sep::before,.sep::after{content:"";flex:1;height:1px;background:var(--line)}
+.toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--fg);color:var(--bg);padding:9px 16px;border-radius:99px;font-weight:500;z-index:60;box-shadow:var(--shadow);max-width:calc(100% - 32px)}
+
+@media (max-width:1180px){.main{grid-template-columns:170px minmax(0,1fr)}.side{grid-column:1 / -1}.list{max-height:none}}
+@media (max-width:760px){
+  .main{grid-template-columns:minmax(0,1fr);gap:12px;padding-block:12px}
+  .levels{position:static;flex-direction:row;overflow-x:auto;padding:6px}
+  .levels h2{display:none}
+  .lvl{grid-template-columns:auto auto;flex:none;padding:6px 10px}
+  .lvl .nm{display:none}
+  .who select{max-width:200px}
+  .kpi b{font-size:20px}
+  .grid2{grid-template-columns:1fr}
+  .plan-head h2{font-size:19px}
+  .dl{grid-template-columns:96px minmax(0,1fr)}
+}
+.who{display:flex;align-items:center;gap:8px;min-width:0}
+.who-name{display:flex;flex-direction:column;line-height:1.2;min-width:0;font-size:13px}
+.who-name b{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:220px}
+.who-name small{color:var(--muted);font-size:11.5px}
+.gate{position:fixed;inset:0;z-index:35;background:var(--bg);overflow:auto;display:flex;align-items:flex-start;justify-content:center;padding:max(24px,env(safe-area-inset-top,0px)) 16px 32px}
+.gate[hidden]{display:none}
+.gate-card{background:var(--surface);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);padding:22px;width:100%;max-width:440px;display:flex;flex-direction:column;gap:14px;margin-top:4vh}
+.gate-card h2{font-size:20px}
+.gate-card .brand{margin:0 0 4px}
+.gate-card form{display:flex;flex-direction:column;gap:12px}
+.gate-card .btn{justify-content:center;padding:10px}
+.lnk{background:none;border:0;padding:0;color:var(--accent);font:inherit;font-size:12.5px;text-decoration:underline;cursor:pointer}
+.gate-foot{display:flex;gap:14px;flex-wrap:wrap}
+.member{display:flex;flex-wrap:wrap;gap:8px;align-items:center;border:1px solid var(--line);border-radius:10px;padding:8px 10px}
+.member>div:first-child{flex:1 1 180px;min-width:0}
+.member select{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:6px 8px}
+.legal h3{font-size:14px;margin-top:6px}
+.legal p,.legal li{font-size:13.5px;line-height:1.5}
+.legal ul{padding-left:18px}
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="top-in">
+    <div class="brand">
+      <svg width="34" height="34" viewBox="0 0 34 34" aria-hidden="true"><rect width="34" height="34" rx="8" fill="var(--accent)"/><path d="M8 9h6v12h6V9h6v17H8z" fill="var(--accent-ink)"/></svg>
+      <div><h1>Résidence 15 Fellini</h1><small>Signalements &amp; suivi technique</small></div>
+    </div>
+    <div class="who" id="whoName" aria-label="Utilisateur connecté"></div>
+    <div class="actions" id="actions"></div>
+  </div>
+</header>
+<div id="notices"></div>
+
+<main class="main">
+  <nav class="panel levels" aria-label="Niveaux">
+    <h2>Niveaux</h2>
+    <div id="levels" style="display:contents"></div>
+  </nav>
+
+  <section class="panel plan-card" aria-label="Plan du niveau">
+    <div class="plan-head">
+      <div><h2 id="lvlTitle"></h2><p id="lvlSub"></p></div>
+      <div class="tools">
+        <span class="seg-label">Pièces d'eau</span>
+        <div class="seg" id="waterSeg" role="group" aria-label="Calque des pièces d'eau">
+          <button data-w="normal" aria-pressed="true">Normal</button>
+          <button data-w="accent" aria-pressed="false">Accentuer</button>
+          <button data-w="mute" aria-pressed="false">Neutraliser</button>
+        </div>
+        <div class="seg" id="zoomSeg" role="group" aria-label="Zoom">
+          <button data-z="1" aria-pressed="true">1×</button>
+          <button data-z="1.6" aria-pressed="false">1,6×</button>
+          <button data-z="2.4" aria-pressed="false">2,4×</button>
+        </div>
+      </div>
+    </div>
+    <div class="plan-scroll" id="planScroll">
+      <div class="plan-wrap" id="planWrap">
+        <canvas id="planCv" width="2752" height="1536" aria-label="Plan architectural du niveau"></canvas>
+        <div class="pins" id="pins"></div>
+      </div>
+    </div>
+    <div class="legend">
+      <span><i style="background:#C4B5FD;border-color:#6D28D9"></i>Escaliers &amp; ascenseurs</span>
+      <span><i style="background:#BAE6FD;border-color:#0284C7"></i>Pièces d'eau</span>
+      <span><i style="background:#FED7AA;border-color:#EA580C"></i>Circulations communes</span>
+      <span><i style="background:#BBF7D0;border-color:#16A34A"></i>Locaux techniques &amp; jardin</span>
+      <span><i style="background:#F8FAFC;border-color:#334155"></i>Pièces sèches</span>
+    </div>
+    <p class="hint" id="planHint"></p>
+  </section>
+
+  <aside class="side">
+    <div class="panel kpis" id="kpis"></div>
+    <section class="panel list-card" aria-label="Signalements">
+      <div class="list-head">
+        <div class="row">
+          <h2 id="listTitle">Signalements</h2>
+          <div class="seg" id="scopeSeg" role="group" aria-label="Portée">
+            <button data-s="level" aria-pressed="true">Ce niveau</button>
+            <button data-s="all" aria-pressed="false">Tout l'immeuble</button>
+          </div>
+        </div>
+        <div class="chips" id="statusChips"></div>
+      </div>
+      <ul class="list" id="list"></ul>
+    </section>
+  </aside>
+</main>
+<div id="layer"></div>
+<div id="gate" class="gate"><div class="gate-card"><p class="ro">Chargement…</p></div></div>
+
+<script src="config.js"></script>
+<script src="vendor/supabase.js"></script>
+
+<script>
+(function(){
+"use strict";
+/* ---------- Référentiel ---------- */
+const FLOORS=[
+ {id:6,label:"6e étage",sub:"Attique, retrait toitures-terrasses",img:"p09"},
+ {id:5,label:"5e étage",sub:"Paliers A · B · C, sans couloir commun",img:"p08"},
+ {id:4,label:"4e étage",sub:"Paliers A · B · C, sans couloir commun",img:"p07"},
+ {id:3,label:"3e étage",sub:"Paliers A · B · C, sans couloir commun",img:"p06"},
+ {id:2,label:"2e étage",sub:"Paliers A · B · C, sans couloir commun",img:"p05"},
+ {id:1,label:"1er étage",sub:"Paliers A · B · C, sans couloir commun",img:"p04"},
+ {id:0,label:"Rez-de-chaussée",sub:"Halls A, B, C, local vélos, jardin",img:"p03"},
+ {id:-1,label:"1er sous-sol",sub:"Parking, caves, local poubelles, bassin",img:"p01"},
+ {id:-2,label:"2e sous-sol",sub:"Parking, fosse de relevage",img:"p02"}];
+const SHORT={6:"6",5:"5",4:"4",3:"3",2:"2",1:"1",0:"RDC","-1":"−1","-2":"−2"};
+const CATS={plumbing:"Plomberie / Eau",electricity:"Électricité",door:"Portes & accès",elevator:"Ascenseurs",cleanliness:"Propreté",damage:"Dégradations"};
+const URG={low:"Faible",medium:"Moyenne",high:"Urgente"};
+const STAT={reported:"Signalé",in_progress:"En cours",resolved:"Résolu"};
+const ROLES={cs_admin:"Conseil syndical",syndic:"Syndic",resident:"Résident",contractor:"Prestataire",pending:"En attente"};
+const TT={COMMON:"Partie commune",LOT:"Logement",PARKING:"Place",CAVE:"Cave"};
+
+/* Points d'ancrage relevés sur les plans (en % de l'image). */
+const LOT_ANCHORS={ // étage -> lot -> [x,y du numéro sur le plan, x,y de la pièce d'eau] — relevé sur les 9 plans
+ 0:{1:[87.4,70.3,94.5,62.5],2:[60.5,70.6,66.5,56],3:[52,74,46.5,67.7],4:[43,45.6,47,40],15:[20.1,79,21.4,49.5],16:[20.1,26,21,7.8],17:[29,26,28.3,7.8]},
+ 1:{1:[83.5,72.5,94,68],5:[54.7,73.5,55.5,55],6:[45.2,73.5,42,58],18:[28.2,68.5,28.2,68.5],19:[11.8,78.5,11.8,60],20:[11.2,35.5,13.5,22],21:[20.8,35.5,22,30]},
+ 2:{1:[84.7,74,95.6,67.7],7:[55.5,75.3,59.6,54.7],8:[45.9,75.3,44.3,56],22:[28.5,70.7,34.2,56],23:[11.8,79,14.2,58],24:[11.8,38.2,11.8,25],25:[21.7,38.2,18.2,24.7]},
+ 3:{1:[84.7,77.5,96,72],9:[55.5,78.5,55,57],10:[45.8,78.5,42,60],26:[28.5,73.5,36,72],27:[11.8,82.5,11.8,65],28:[11.8,40,12,27],29:[21.4,40,22,30]},
+ 4:{1:[83.5,71.5,93,62],11:[54.7,72.5,58,62],12:[45.5,72.5,45.5,72.5],30:[28.5,67.5,32,70],31:[11.8,77,16,54],32:[11.8,34,12,26],33:[21.4,34,20,20]},
+ 5:{1:[83.5,75.5,95,70],13:[58.5,70,54.5,57],14:[40.5,69.5,39,55],34:[27.5,69.5,33.5,66],35:[10.5,80.5,8,60],36:[11.2,40,12,27],37:[21,40,22,30]},
+ 6:{1:[22,37.5,11,33],13:[45.2,35,47,42],14:[55,35,54,30],38:[72.2,38,77,32],39:[87.5,40,90,46]}};
+const PLACES={ // n° de place -> [niveau, x px, y px] relevés sur les plans (image 1376×768)
+ 68:[-1,790,226],69:[-1,853,226],70:[-1,916,226],71:[-1,979,226],72:[-1,1041,226],73:[-1,1104,226],74:[-1,1166,226],
+ 87:[-1,287,226],88:[-1,375,226],89:[-1,437,226],90:[-1,500,226],
+ 75:[-1,1186,678],76:[-1,1113,678],77:[-1,1041,678],78:[-1,980,678],79:[-1,918,678],80:[-1,851,678],81:[-1,772,678],
+ 82:[-1,600,678],83:[-1,536,678],84:[-1,474,678],85:[-1,405,678],86:[-1,343,678],
+ 106:[-2,1290,455],
+ 120:[-2,48,643],119:[-2,113,643],118:[-2,314,643],117:[-2,380,643],116:[-2,447,643],115:[-2,512,643],114:[-2,576,643],
+ 113:[-2,767,643],112:[-2,833,643],111:[-2,899,643],110:[-2,965,643],109:[-2,1031,643],108:[-2,1097,643],107:[-2,1163,643]}; // numérotation reprise du plan de géomètre (15CAE)
+[210,275,340,405,472,540,610,688,766,832,898,964,1030,1096,1162].forEach((x,i)=>PLACES[91+i]=[-2,x,163]);
+const CAVES={67:[82,183],45:[133,183],44:[205,183],43:[205,228],42:[205,272],41:[205,365],40:[205,410],55:[130,708],56:[97,708],57:[64,708]}; // plan de géomètre (15CAE)
+[66,65,64,63,62,61,60,59,58].forEach((n,i)=>CAVES[n]=[97,228+i*45.2]);
+[46,47,48,49,50,51,52,53,54].forEach((n,i)=>CAVES[n]=[133,228+i*45.2]);
+function placeAnchor(n){const p=PLACES[n];return p?{floor:p[0],x:p[1]/13.76,y:p[2]/7.68}:null;}
+function caveAnchor(n){const c=CAVES[n];if(c) return {floor:-1,x:c[0]/13.76,y:c[1]/7.68};const i=(n-40)%14;return {floor:-1,x:n%2?9.7:13.5,y:24+i*3.6};}
+// Désignations officielles (tableaux récapitulatifs du géomètre) : affichées à la place du n° de lot.
+const APT={1:"Cage A"};
+"B01 B02 B03 B11 B12 B21 B22 B31 B32 B41 B42 B51 B52 C01 C02 C03 C11 C12 C13 C14 C21 C22 C23 C24 C31 C32 C33 C34 C41 C42 C43 C44 C51 C52 C53 C54 C61 C62".split(" ").forEach((c,i)=>APT[i+2]=c);
+const APT2LOT={};for(const k in APT)APT2LOT[APT[k]]=+k;
+function desigShort(tt,n){n=+n;if(tt==="LOT")return APT[n]||("lot "+n);if(tt==="PARKING")return "Parking "+(n-67);if(tt==="CAVE")return "Cave "+(n-39);return "";}
+function desigLong(tt,n){n=+n;if(tt!=="LOT")return desigShort(tt,n);if(n===1)return "Cage A (20 appartements)";return (n===3||n===4?"Studio ":"Appartement ")+APT[n];}
+function desigOptions(tt){const r=tt==="LOT"?[1,39]:tt==="PARKING"?[68,120]:[40,67];const o=[];for(let n=r[0];n<=r[1];n++)o.push([n,desigLong(tt,n)]);return o;}
+// Lot, place ou cave dont le numéro est le plus proche du point touché.
+function nearestLot(fl,x,y){
+  // Le lot 1 couvre toute l'aile A (cage A) du RDC au 6e : tous ses logements appartiennent au même lot.
+  if((fl===0&&x>=68)||(fl>=1&&fl<=5&&x>=63)||(fl===6&&x<=35)) return 1;
+  let best=null,bd=1e9;const a=LOT_ANCHORS[fl]||{};
+  for(const k in a){const d=Math.hypot(a[k][0]-x,(a[k][1]-y)*.56);if(d<bd){bd=d;best=+k;}}
+  return bd<14?best:null;}
+function nearestSpot(fl,x,y){let best=null,bd=1e9;
+  for(const k in PLACES){const p=PLACES[k];if(p[0]!==fl)continue;const d=Math.hypot(p[1]/13.76-x,(p[2]/7.68-y)*.56);if(d<bd){bd=d;best={t:"PARKING",n:+k};}}
+  if(fl===-1) for(const k in CAVES){const c=CAVES[k];const d=Math.hypot(c[0]/13.76-x,(c[1]/7.68-y)*.56);if(d<bd){bd=d;best={t:"CAVE",n:+k};}}
+  return bd<5?best:null;}
+const CAGE_X={C:28,B:53,A:88},CAGE_X6={A:19,B:50,C:81}; // au 6e (attique) le plan est orienté cage A à gauche
+function floorDefault(f){ return f<0?{x:50,y:50}:{x:50,y:58}; }
+
+/* ---------- Base partagée (Supabase) : remplace le stockage local de la maquette ---------- */
+const CFG=window.FELLINI_CONFIG||{};
+const sb=(CFG.url&&CFG.key&&window.supabase)?window.supabase.createClient(CFG.url,CFG.key):null;
+let S={me:null,tickets:[],users:[],inviteCode:"",hidden:0};
+const rowToT=r=>({num:r.num,floor:r.floor,x:+r.x,y:+r.y,targetType:r.target_type,targetId:r.target_id,lotNumber:r.lot_number??undefined,room:r.room,location:r.location,title:r.title,category:r.category,urgency:r.urgency,status:r.status,date:r.date,author:r.author,description:r.description,osNumber:r.os_number,assignedContractor:r.assigned_contractor,source:r.source});
+const tToRow=t=>({floor:t.floor,x:t.x,y:t.y,target_type:t.targetType,target_id:String(t.targetId??""),lot_number:t.targetType==="LOT"?Number(t.lotNumber):null,room:t.room||"NONE",location:String(t.location||"").slice(0,120)||"Non précisé",title:String(t.title).slice(0,50),category:t.category,urgency:t.urgency,status:t.status||"reported",date:t.date,author:String(t.author||"").slice(0,80),description:String(t.description||"").slice(0,4000),os_number:t.osNumber||"",assigned_contractor:t.assignedContractor||"",source:t.source||"app"});
+const rowToU=r=>({id:r.id,name:r.name,role:r.role,lot:r.lot,cage:r.cage,floor:r.floor,residentType:r.resident_type||"",category:r.category||"",email:r.email||"",requested:String(r.requested_at||"").slice(0,10)});
+function fail(error,what){
+  console.error(error);const m=String(error&&error.message||"");
+  toast((what||"Action impossible")+" : "+(/row-level security|permission denied/i.test(m)?"vos droits ne le permettent pas.":/fetch|network/i.test(m)?"vérifiez votre connexion Internet.":m||"réessayez."));
+  return false;
+}
+async function refresh(){
+  if(!S.me) return false;
+  const [t,h]=await Promise.all([sb.from("tickets").select("*").order("num"),sb.rpc("hidden_private_count")]);
+  if(t.error) return fail(t.error,"Chargement impossible");
+  S.tickets=t.data.map(rowToT);S.hidden=h.error?0:(h.data||0);
+  if(S.me.role==="cs_admin"){
+    const [p,s]=await Promise.all([sb.from("profiles").select("*").order("requested_at"),sb.from("settings").select("invite_code").maybeSingle()]);
+    if(!p.error) S.users=p.data.map(rowToU);
+    if(!s.error&&s.data) S.inviteCode=s.data.invite_code;
+  } else {S.users=[];S.inviteCode="";}
+  return true;
+}
+const UI={floor:2,scope:"level",status:"active",water:"normal",zoom:1,sel:null,temp:null};
+
+/* ---------- Droits (RG-SEC-02 / RG-SEC-03) ---------- */
+const me=()=>S.me;
+const can={
+ declare:u=>["cs_admin","syndic","resident"].includes(u.role),
+ status:(u,t)=>u.role==="cs_admin"||u.role==="syndic"||(u.role==="contractor"&&t.category===u.category),
+ os:u=>u.role==="cs_admin"||u.role==="syndic",
+ del:u=>u.role==="cs_admin",
+ admin:u=>u.role==="cs_admin",
+ ingest:u=>u.role==="cs_admin"||u.role==="syndic",
+ export:u=>u.role==="cs_admin"||u.role==="syndic"};
+function visible(u,t){
+  if(u.role==="cs_admin"||u.role==="syndic") return true;
+  if(u.role==="contractor") return t.category===u.category;
+  if(t.targetType!=="LOT") return true;            // parties communes, places, caves
+  if(u.role==="resident") return Number(t.lotNumber)===Number(u.lot);
+  return false;                                     // pending : aucun lot privatif
+}
+const visTickets=()=>S.tickets.filter(t=>visible(me(),t));
+const hiddenPrivate=()=>S.hidden;   // compté côté serveur : les signalements masqués ne sont jamais envoyés au navigateur
+
+/* ---------- Utilitaires ---------- */
+const $=s=>document.querySelector(s);
+const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const fmtDate=d=>{try{return new Date(d+"T12:00:00").toLocaleDateString("fr-FR",{day:"numeric",month:"short",year:"numeric"});}catch(e){return d;}};
+const today=()=>new Date().toISOString().slice(0,10);
+const floorOf=id=>FLOORS.find(f=>f.id===id);
+let toastT;function toast(m){let el=$(".toast");if(!el){el=document.createElement("div");el.className="toast";el.setAttribute("role","status");document.body.appendChild(el);}el.textContent=m;el.hidden=false;clearTimeout(toastT);toastT=setTimeout(()=>el.hidden=true,2600);}
+
+/* ---------- Plans : chargement, calque pièces d'eau, hit-test ---------- */
+const imgs={},orig={},variants={};
+const cv=$("#planCv"),ctx=cv.getContext("2d",{willReadFrequently:true});
+function loadImg(f){return imgs[f.id]||(imgs[f.id]=(async()=>{
+  try{const {data,error}=await sb.storage.from("plans").download(f.img);if(error||!data) return null;
+    const url=URL.createObjectURL(data);
+    return await new Promise(res=>{const im=new Image();im.onload=()=>res(im);im.onerror=()=>res(null);im.src=url;});
+  }catch(e){return null;}})());}
+function getOrig(fid,im){
+  if(orig[fid]!==undefined) return orig[fid];
+  try{const c=document.createElement("canvas");c.width=1376;c.height=768;const x=c.getContext("2d",{willReadFrequently:true});x.drawImage(im,0,0,1376,768);orig[fid]=x.getImageData(0,0,1376,768);}catch(e){orig[fid]=null;}
+  return orig[fid];
+}
+const WATER=[186,230,253];
+function isWater(r,g,b){return Math.abs(r-WATER[0])+Math.abs(g-WATER[1])+Math.abs(b-WATER[2])<70 && b>225 && b-r>40;}
+function variant(fid,mode,im){
+  const k=fid+":"+mode;if(variants[k]) return variants[k];
+  for(const kk in variants) if(!kk.startsWith(fid+":")) delete variants[kk];
+  const c=document.createElement("canvas");c.width=2752;c.height=1536;const x=c.getContext("2d",{willReadFrequently:true});x.drawImage(im,0,0,2752,1536);
+  const d=x.getImageData(0,0,2752,1536),p=d.data;
+  for(let i=0;i<p.length;i+=4){
+    if(isWater(p[i],p[i+1],p[i+2])){
+      if(mode==="accent"){p[i]=14;p[i+1]=165;p[i+2]=233;}
+      else{p[i]=248;p[i+1]=250;p[i+2]=252;}
+    } else if(mode==="accent"){
+      p[i]=Math.round(p[i]*.55+255*.45);p[i+1]=Math.round(p[i+1]*.55+255*.45);p[i+2]=Math.round(p[i+2]*.55+255*.45);
+    }
+  }
+  return variants[k]=d;
+}
+let drawToken=0;
+async function drawPlan(){
+  const tk=++drawToken,f=floorOf(UI.floor),im=await loadImg(f);if(tk!==drawToken) return;
+  ctx.clearRect(0,0,2752,1536);
+  if(!im){delete imgs[f.id];ctx.fillStyle="#777";ctx.font="44px sans-serif";ctx.fillText("Plan non chargé pour ce niveau.",80,130);ctx.font="34px sans-serif";ctx.fillText("Le Conseil syndical peut l'ajouter depuis Administration, rubrique Plans.",80,190);return;}
+  getOrig(f.id,im);
+  if(UI.water==="normal"||!orig[f.id]) ctx.drawImage(im,0,0,2752,1536);
+  else ctx.putImageData(variant(f.id,UI.water,im),0,0);
+}
+const PALETTE=[
+ {k:"water",rgb:[186,230,253],label:"Pièce d'eau"},
+ {k:"vertical",rgb:[196,181,253],label:"Escalier / ascenseur"},
+ {k:"horizontal",rgb:[254,215,170],label:"Circulation commune"},
+ {k:"tech",rgb:[187,247,208],label:"Local technique / jardin"},
+ {k:"dry",rgb:[248,250,252],label:"Pièce sèche"}];
+function classify(fid,px,py){
+  const o=orig[fid];if(!o) return null;
+  const votes={};
+  for(let dy=-4;dy<=4;dy+=2)for(let dx=-4;dx<=4;dx+=2){
+    const x=Math.min(1375,Math.max(0,px+dx)),y=Math.min(767,Math.max(0,py+dy)),i=(y*1376+x)*4;
+    const r=o.data[i],g=o.data[i+1],b=o.data[i+2];
+    if(r+g+b<450) continue; // trait de cloison
+    let best=null,bd=1e9;
+    for(const c of PALETTE){const d=(r-c.rgb[0])**2+(g-c.rgb[1])**2+(b-c.rgb[2])**2;if(d<bd){bd=d;best=c;}}
+    if(r>246&&g>246&&b>246) best=PALETTE[4];
+    votes[best.k]=(votes[best.k]||0)+1;
+  }
+  const k=Object.keys(votes).sort((a,b)=>votes[b]-votes[a])[0];
+  return PALETTE.find(c=>c.k===k)||PALETTE[4];
+}
+function cageFromX(x,fl){return fl===6?(x<35?"A":x<65?"B":"C"):(x<38?"C":x<66?"B":"A");}
+
+/* ---------- Rendu ---------- */
+function renderHeader(){
+  const u=me();
+  $("#whoName").innerHTML=`<div class="who-name"><b>${esc(u.name)}</b><small>${ROLES[u.role]}${(u.role==="resident"||u.role==="pending")&&u.lot?" · "+desigShort("LOT",u.lot):""}${u.category?" · "+CATS[u.category]:""}</small></div>`;
+  const pend=S.users.filter(x=>x.role==="pending").length;
+  let h="";
+  if(can.declare(u)) h+=`<button class="btn primary" id="aNew">+ Signaler</button>`;
+  if(can.ingest(u)) h+=`<button class="btn" id="aImp">Importer</button>`;
+  if(can.export(u)) h+=`<button class="btn" id="aCsv">Export CSV</button>`;
+  if(can.export(u)) h+=`<button class="btn" id="aPrint">Imprimer</button>`;
+  if(can.admin(u)) h+=`<button class="btn" id="aAdm">Administration${pend?`<span class="badge" aria-label="${pend} demandes">${pend}</span>`:""}</button>`;
+  h+=`<button class="btn ghost" id="aRgpd">Données personnelles</button><button class="btn ghost" id="aOut">Déconnexion</button>`;
+  $("#actions").innerHTML=h;
+  $("#aNew")&&($("#aNew").onclick=()=>toast("Touchez le plan à l'endroit du problème pour le signaler."));
+  $("#aImp")&&($("#aImp").onclick=openImport);
+  $("#aCsv")&&($("#aCsv").onclick=exportCsv);
+  $("#aPrint")&&($("#aPrint").onclick=()=>window.print());
+  $("#aAdm")&&($("#aAdm").onclick=openAdmin);
+  $("#aRgpd").onclick=openPrivacy;
+  $("#aOut").onclick=signOut;
+}
+function renderNotices(){
+  const u=me();let h="";
+  if(u.role==="resident"){const n=hiddenPrivate();
+    h+=`<div class="notice"><span>🔒</span><span>Vue résident, ${desigLong("LOT",u.lot).replace(/^(Appartement|Studio)/,m=>m.toLowerCase())} (cage ${esc(u.cage)}, ${floorOf(u.floor)?.label||""}). ${n?`<b>${n} signalement${n>1?"s":""} concernant d'autres logements ${n>1?"sont masqués":"est masqué"}</b> au titre du respect de la vie privée.`:"Les signalements des autres logements ne vous sont jamais transmis, au titre du respect de la vie privée."}</span></div>`;}
+  if(u.role==="pending"){const n=hiddenPrivate();
+    h+=`<div class="notice"><span>⏳</span><span><b>Compte en attente de validation par le Conseil syndical.</b> Vous voyez uniquement les parties communes, en lecture seule. ${n} signalement${n>1?"s":""} privatif${n>1?"s":""} masqué${n>1?"s":""}.</span></div>`;}
+  if(u.role==="contractor"){h+=`<div class="notice"><span>🔧</span><span>Vue prestataire : seuls les signalements <b>${CATS[u.category]}</b> sont visibles. Vous pouvez faire évoluer leur statut.</span></div>`;}
+  $("#notices").innerHTML=h;
+}
+function renderLevels(){
+  const vt=visTickets();
+  $("#levels").innerHTML=FLOORS.map(f=>{
+    const n=vt.filter(t=>t.floor===f.id&&t.status!=="resolved").length;
+    return `<button class="lvl" data-f="${f.id}" aria-current="${f.id===UI.floor}"><span class="idx">${SHORT[f.id]}</span><span class="nm">${f.label}<small>${esc(f.sub.split(",")[0])}</small></span><span class="cnt ${n?"":"zero"}">${n}</span></button>`;}).join("");
+  $("#levels").querySelectorAll(".lvl").forEach(b=>b.onclick=()=>{UI.floor=Number(b.dataset.f);UI.temp=null;renderAll();});
+}
+function renderPlanHead(){
+  const f=floorOf(UI.floor),u=me();
+  $("#lvlTitle").textContent=f.label;
+  $("#lvlSub").textContent=`Niveau ${f.id} · ${f.sub}`;
+  $("#planHint").textContent=can.declare(u)?"Touchez une pièce ou une zone du plan pour y déclarer un incident. La zone touchée pré-remplit la localisation, et une pièce d'eau pré-remplit la catégorie Plomberie.":"Votre profil ne permet pas de déclarer d'incident. Touchez une épingle pour voir le détail.";
+}
+function renderPins(){
+  const vt=visTickets().filter(t=>t.floor===UI.floor&&(UI.status==="all"||(UI.status==="active"?t.status!=="resolved":t.status===UI.status)));
+  let h=vt.map(t=>`<button class="pin ${t.status}${UI.sel===t.num?" sel":""}" style="left:${t.x}%;top:${t.y}%" data-n="${t.num}" title="#${t.num} ${esc(t.title)}" aria-label="Signalement ${t.num} : ${esc(t.title)}"><span>${t.num}</span></button>`).join("");
+  if(UI.temp&&UI.temp.floor===UI.floor) h+=`<div class="pin temp" style="left:${UI.temp.x}%;top:${UI.temp.y}%"><span>+</span></div>`;
+  $("#pins").innerHTML=h;
+  $("#pins").querySelectorAll(".pin[data-n]").forEach(p=>p.onclick=e=>{e.stopPropagation();openTicket(Number(p.dataset.n));});
+}
+function renderKpis(){
+  const vt=visTickets(),c=s=>vt.filter(t=>t.status===s).length;
+  $("#kpis").innerHTML=`<div class="kpi"><b>${vt.length-c("resolved")}</b><span>Actifs</span></div><div class="kpi k-rep"><b>${c("reported")}</b><span>Signalés</span></div><div class="kpi k-pro"><b>${c("in_progress")}</b><span>En cours</span></div><div class="kpi k-res"><b>${c("resolved")}</b><span>Résolus</span></div>`;
+}
+function renderList(){
+  const chips=[["active","Actifs"],["reported","Signalés"],["in_progress","En cours"],["resolved","Résolus"],["all","Tous"]];
+  $("#statusChips").innerHTML=chips.map(([k,l])=>`<button class="chip" data-st="${k}" aria-pressed="${UI.status===k}">${l}</button>`).join("");
+  $("#statusChips").querySelectorAll(".chip").forEach(b=>b.onclick=()=>{UI.status=b.dataset.st;renderPins();renderList();});
+  $("#scopeSeg").querySelectorAll("button").forEach(b=>b.setAttribute("aria-pressed",b.dataset.s===UI.scope));
+  let vt=visTickets().filter(t=>UI.scope==="all"||t.floor===UI.floor);
+  vt=vt.filter(t=>UI.status==="all"||(UI.status==="active"?t.status!=="resolved":t.status===UI.status));
+  vt.sort((a,b)=>({high:0,medium:1,low:2}[a.urgency]-{high:0,medium:1,low:2}[b.urgency])||b.date.localeCompare(a.date));
+  $("#listTitle").textContent=UI.scope==="all"?"Tout l'immeuble":"Signalements · "+floorOf(UI.floor).label;
+  if(!vt.length){$("#list").innerHTML=`<li class="empty">Aucun signalement pour ce filtre.${can.declare(me())?"<br>Touchez le plan pour en déclarer un.":""}</li>`;return;}
+  $("#list").innerHTML=vt.map(t=>`<li class="item${UI.sel===t.num?" sel":""}" data-n="${t.num}" tabindex="0">
+    <span class="num ${t.status}">${t.num}</span>
+    <div style="min-width:0"><h3>${esc(t.title)}</h3>
+      <div class="meta"><span class="pill ${t.status}">${STAT[t.status]}</span><span>${UI.scope==="all"?SHORT[t.floor]+" · ":""}${esc(t.location)}</span></div>
+      <div class="meta"><span>${CATS[t.category]}</span><span class="${t.urgency==="high"?"urg-high":""}">${URG[t.urgency]}</span>${t.targetType==="LOT"?`<span class="tag priv">Privatif</span>`:""}${t.osNumber?`<span class="tag mono">${esc(t.osNumber)}</span>`:""}${t.source!=="app"?`<span class="tag">${t.source==="whatsapp"?"WhatsApp":"Import IA"}</span>`:""}</div>
+    </div></li>`).join("");
+  $("#list").querySelectorAll(".item").forEach(li=>{const go=()=>{const t=S.tickets.find(x=>x.num===Number(li.dataset.n));if(t&&t.floor!==UI.floor){UI.floor=t.floor;renderAll();}openTicket(Number(li.dataset.n));};li.onclick=go;li.onkeydown=e=>{if(e.key==="Enter")go();};});
+}
+function renderAll(){renderHeader();renderNotices();renderLevels();renderPlanHead();drawPlan();renderPins();renderKpis();renderList();}
+
+/* ---------- Feuilles ---------- */
+function openSheet(html,wide){
+  $("#layer").innerHTML=`<div class="scrim" id="scrim"><div class="sheet${wide?" wide":""}" role="dialog" aria-modal="true">${html}</div></div>`;
+  $("#scrim").onclick=e=>{if(e.target.id==="scrim")closeSheet();};
+  $("#layer").querySelectorAll("[data-close]").forEach(b=>b.onclick=closeSheet);
+  const f=$("#layer").querySelector("input,select,textarea,button:not(.x)");f&&f.focus({preventScroll:true});
+}
+function closeSheet(){$("#layer").innerHTML="";if(UI.temp){UI.temp=null;renderPins();}if(UI.sel){UI.sel=null;renderPins();renderList();}}
+document.addEventListener("keydown",e=>{if(e.key==="Escape"&&$("#scrim"))closeSheet();});
+const head=(t,p)=>`<div class="sheet-head"><div><h2>${t}</h2>${p?`<p>${p}</p>`:""}</div><button class="x" data-close aria-label="Fermer">×</button></div>`;
+
+/* ---------- Création sur plan (RG-GEO-01) ---------- */
+$("#planWrap").addEventListener("click",e=>{
+  if(e.target.closest(".pin[data-n]")) return;
+  const u=me();if(!can.declare(u)){toast("Votre profil est en lecture seule.");return;}
+  const r=$("#planWrap").getBoundingClientRect();
+  const x=+((e.clientX-r.left)/r.width*100).toFixed(2),y=+((e.clientY-r.top)/r.height*100).toFixed(2);
+  const zone=classify(UI.floor,Math.round(x*13.76),Math.round(y*7.68))||PALETTE[4];
+  UI.temp={floor:UI.floor,x,y};renderPins();
+  openCreate(zone,x,y);
+});
+function openCreate(zone,x,y){
+  const u=me(),f=floorOf(UI.floor),cage=cageFromX(x,UI.floor);
+  let tt="COMMON",num="",found="",warn="";
+  if(UI.floor<0&&zone.k==="dry"){tt="PARKING";const sp=nearestSpot(UI.floor,x,y);if(sp){tt=sp.t;num=sp.n;found=desigShort(sp.t,sp.n);}}
+  else if(UI.floor>=0&&(zone.k==="dry"||zone.k==="water")){tt="LOT";const l=nearestLot(UI.floor,x,y);if(l){num=l;found=desigLong("LOT",l);}}
+  if(u.role==="resident"&&tt==="LOT"){if(num&&num!==u.lot)warn=`Vous ne pouvez déclarer que pour votre logement (${desigShort("LOT",u.lot)}) ou pour une partie commune.`;num=u.lot;}
+  const loc=tt==="LOT"&&num?`${desigLong("LOT",num)} · ${zone.k==="water"?"pièce d'eau":"pièce sèche"} · ${f.label}`:(tt!=="COMMON"&&num?`${desigShort(tt,num)} · ${f.label}`:`${zone.label} · secteur cage ${cage} · ${f.label}`);
+  const cat=zone.k==="water"?"plumbing":(zone.k==="vertical"?"elevator":"");
+  openSheet(head("Nouveau signalement",`${f.label} · point (${x.toFixed(1)} %, ${y.toFixed(1)} %)`)+`
+   <div class="detect">Zone détectée : <b>${UI.floor<0&&zone.k==="dry"?"Stationnement / cave":zone.label}</b>${found?` dans <b>${found}</b>`:""}${zone.k==="water"?", catégorie Plomberie pré-remplie":""}.</div>${warn?`<p class="err">${warn}</p>`:""}
+   <form id="fNew" style="display:contents" novalidate>
+    <div class="field"><label for="nLoc">Localisation</label><input id="nLoc" value="${esc(loc)}" maxlength="80"></div>
+    <div class="field"><span class="flabel">Concerne</span><div class="seg" id="nTT" role="group" aria-label="Type de cible">${Object.keys(TT).map(k=>`<button type="button" data-t="${k}" aria-pressed="${k===tt}">${TT[k]}</button>`).join("")}</div></div>
+    <div class="field" id="nNumF"><label for="nNum" id="nNumL">Désignation</label><select id="nNum"></select></div>
+    <div class="field"><label for="nTitle">Titre <span class="ro">(50 caractères max.)</span></label><input id="nTitle" maxlength="50" placeholder="Ex. : Fuite sous l'évier" required></div>
+    <div class="grid2">
+      <div class="field"><label for="nCat">Catégorie</label><select id="nCat"><option value="">Choisir…</option>${Object.keys(CATS).map(k=>`<option value="${k}" ${k===cat?"selected":""}>${CATS[k]}</option>`).join("")}</select></div>
+      <div class="field"><label for="nUrg">Gravité</label><select id="nUrg">${Object.keys(URG).map(k=>`<option value="${k}" ${k==="medium"?"selected":""}>${URG[k]}</option>`).join("")}</select></div>
+    </div>
+    <div class="field"><label for="nDesc">Description</label><textarea id="nDesc" placeholder="Ce que vous constatez, depuis quand…"></textarea></div>
+    <p class="err" id="nErr" hidden></p>
+    <div class="foot"><button type="button" class="btn" data-close>Annuler</button><button class="btn primary" type="submit">Déclarer l'incident</button></div>
+   </form>`);
+  let cur=tt;
+  const sync=()=>{$("#nTT").querySelectorAll("button").forEach(b=>b.setAttribute("aria-pressed",b.dataset.t===cur));
+    $("#nNumF").hidden=cur==="COMMON";
+    $("#nNumL").textContent=cur==="LOT"?"Logement":cur==="PARKING"?"Parking":"Cave";
+    if(cur!=="COMMON"){const prev=Number($("#nNum").value)||num;$("#nNum").innerHTML=`<option value="">Choisir…</option>`+desigOptions(cur).map(([n,l])=>`<option value="${n}" ${n===+prev?"selected":""}>${l}</option>`).join("");}
+    const lockLot=u.role==="resident"&&cur==="LOT";$("#nNum").disabled=lockLot;if(lockLot)$("#nNum").value=u.lot;};
+  $("#nTT").querySelectorAll("button").forEach(b=>b.onclick=()=>{cur=b.dataset.t;sync();});sync();
+  $("#fNew").onsubmit=async e=>{e.preventDefault();
+    const title=$("#nTitle").value.trim(),catv=$("#nCat").value,n=Number($("#nNum").value);
+    const err=m=>{$("#nErr").textContent=m;$("#nErr").hidden=false;};
+    if(!title) return err("Donnez un titre court au problème.");
+    if(!catv) return err("Choisissez une catégorie.");
+    const rng={LOT:[1,39],CAVE:[40,67],PARKING:[68,120]}[cur];
+    if(rng&&!(Number.isInteger(n)&&n>=rng[0]&&n<=rng[1])) return err(`Choisissez ${cur==="LOT"?"le logement":cur==="PARKING"?"le parking":"la cave"} concerné.`);
+    const row=tToRow({floor:UI.floor,x,y,targetType:cur,targetId:cur==="COMMON"?"zone-"+cage:String(n),lotNumber:cur==="LOT"?n:undefined,
+      location:$("#nLoc").value.trim()||loc,title,category:catv,urgency:$("#nUrg").value,status:"reported",date:today(),author:u.name,description:$("#nDesc").value.trim(),room:zone.k==="water"?"CUISINE":"NONE"});
+    const btn=e.target.querySelector("[type=submit]");btn.disabled=true;
+    const {data,error}=await sb.from("tickets").insert(row).select().single();
+    if(error){btn.disabled=false;fail(error,"Signalement non enregistré");return;}
+    await refresh();UI.temp=null;closeSheet();UI.sel=data.num;renderAll();toast(`Signalement #${data.num} enregistré.`);
+  };
+}
+
+/* ---------- Détail d'un ticket (RG-TIC) ---------- */
+function openTicket(n){
+  const t=S.tickets.find(x=>x.num===n),u=me();if(!t||!visible(u,t)) return;
+  UI.sel=n;renderPins();renderList();
+  const f=floorOf(t.floor);
+  const st=can.status(u,t)?`<div class="seg" id="dSt" role="group" aria-label="Statut">${Object.keys(STAT).map(k=>`<button data-s="${k}" aria-pressed="${t.status===k}">${STAT[k]}</button>`).join("")}</div>`:`<span class="pill ${t.status}">${STAT[t.status]}</span> <span class="ro">Lecture seule</span>`;
+  const os=can.os(u)?`<div class="grid2"><div class="field"><label for="dOs">N° d'ordre de service</label><input id="dOs" class="mono" value="${esc(t.osNumber)}" placeholder="OS-2026-105"></div><div class="field"><label for="dCo">Entreprise mandatée</label><input id="dCo" value="${esc(t.assignedContractor)}" placeholder="Ets Martin Plomberie"></div></div><div><button class="btn" id="dSaveOs">Enregistrer l'OS</button></div>`
+    :`<div class="meta">${t.osNumber?`<span class="tag mono">${esc(t.osNumber)}</span>`:`<span class="ro">Pas encore d'ordre de service</span>`}${t.assignedContractor?`<span class="tag">${esc(t.assignedContractor)}</span>`:""}</div>`;
+  openSheet(head(`#${t.num} · ${esc(t.title)}`,`${f.label} · ${esc(t.location)}`)+`
+   <dl class="dl">
+    <dt>Catégorie</dt><dd>${CATS[t.category]}</dd>
+    <dt>Gravité</dt><dd class="${t.urgency==="high"?"urg-high":""}">${URG[t.urgency]}</dd>
+    <dt>Concerne</dt><dd>${t.targetType!=="COMMON"?esc(desigLong(t.targetType,t.targetId))+` <span class="ro">(lot ${esc(t.targetId)})</span>`:TT.COMMON}${t.targetType==="LOT"?' <span class="tag priv">Privatif</span>':""}</dd>
+    <dt>Déclaré le</dt><dd>${fmtDate(t.date)} par ${esc(t.author)}</dd>
+    <dt>Origine</dt><dd>${t.source==="whatsapp"?"Passerelle WhatsApp":t.source==="json"?"Import JSON IA":"Application"}</dd>
+    <dt>Description</dt><dd>${esc(t.description)||"<span class='ro'>Aucune</span>"}</dd>
+   </dl>
+   <div class="box"><h3>Statut</h3>${st}</div>
+   <div class="box"><h3>Ordre de service</h3>${os}</div>
+   <div class="foot" id="dFoot">${can.del(u)?`<button class="btn danger" id="dDel">Supprimer</button>`:""}<button class="btn" data-close>Fermer</button></div>`);
+  $("#dSt")&&$("#dSt").querySelectorAll("button").forEach(b=>b.onclick=async()=>{
+    const {error}=await sb.from("tickets").update({status:b.dataset.s}).eq("num",n);if(error){fail(error,"Statut non modifié");return;}
+    await refresh();renderAll();openTicket(n);toast(`Statut : ${STAT[b.dataset.s]}.`);});
+  $("#dSaveOs")&&($("#dSaveOs").onclick=async()=>{
+    const {error}=await sb.from("tickets").update({os_number:$("#dOs").value.trim().slice(0,40),assigned_contractor:$("#dCo").value.trim().slice(0,80)}).eq("num",n);if(error){fail(error,"Ordre de service non enregistré");return;}
+    await refresh();renderList();toast("Ordre de service enregistré.");});
+  $("#dDel")&&($("#dDel").onclick=()=>{$("#dFoot").innerHTML=`<span class="err" style="margin-right:auto">Supprimer définitivement #${t.num} ?</span><button class="btn" id="dNo">Non</button><button class="btn danger" id="dYes">Oui, supprimer</button>`;
+    $("#dNo").onclick=()=>openTicket(n);$("#dYes").onclick=async()=>{
+      const {error}=await sb.from("tickets").delete().eq("num",n);if(error){fail(error,"Suppression impossible");return;}
+      await refresh();UI.sel=null;closeSheet();renderAll();toast(`Signalement #${n} supprimé.`);};});
+}
+
+/* ---------- Connexion par lien magique & demande d'accès (RG-SSO) ---------- */
+const GBRAND=`<div class="brand"><svg width="34" height="34" viewBox="0 0 34 34" aria-hidden="true"><rect width="34" height="34" rx="8" fill="var(--accent)"/><path d="M8 9h6v12h6V9h6v17H8z" fill="var(--accent-ink)"/></svg><div><h1>Résidence 15 Fellini</h1><small>Signalements &amp; suivi technique</small></div></div>`;
+function gate(html,withOut){
+  const g=$("#gate");
+  g.innerHTML=`<div class="gate-card">${GBRAND}${html}<p class="gate-foot"><button class="lnk" type="button" id="gRgpd">Données personnelles</button>${withOut?`<button class="lnk" type="button" id="gOut">Se déconnecter</button>`:""}</p></div>`;
+  g.hidden=false;$("#gRgpd").onclick=openPrivacy;$("#gOut")&&($("#gOut").onclick=signOut);
+}
+function ungate(){const g=$("#gate");g.hidden=true;g.innerHTML="";}
+async function signOut(){$("#layer").innerHTML="";try{await sb.auth.signOut();}catch(e){}S.me=null;S.tickets=[];S.users=[];showLogin();}
+function showLogin(msg){
+  gate(`<h2>Connexion</h2><p class="ro">Saisissez votre adresse e-mail : vous recevrez un lien de connexion. Aucun mot de passe à retenir.</p>
+   ${msg?`<p class="err">${esc(msg)}</p>`:""}
+   <form id="fLog" novalidate>
+    <div class="field"><label for="sMail">Adresse e-mail</label><input id="sMail" type="email" autocomplete="email" inputmode="email" placeholder="prenom.nom@exemple.fr"></div>
+    <p class="err" id="lErr" hidden></p>
+    <button class="btn primary" type="submit">Recevoir un lien de connexion</button>
+   </form>`);
+  $("#fLog").onsubmit=async e=>{e.preventDefault();
+    const email=$("#sMail").value.trim().toLowerCase(),err=m=>{$("#lErr").textContent=m;$("#lErr").hidden=false;};
+    if(!/^\S+@\S+\.\S+$/.test(email)) return err("Saisissez une adresse e-mail valide.");
+    const btn=e.target.querySelector("[type=submit]");btn.disabled=true;btn.textContent="Envoi…";
+    const {error}=await sb.auth.signInWithOtp({email,options:{emailRedirectTo:location.origin+location.pathname}});
+    if(error){btn.disabled=false;btn.textContent="Recevoir un lien de connexion";
+      return err(/rate|seconds|limit/i.test(error.message)?"Trop de demandes rapprochées. Patientez une minute puis réessayez.":"L'envoi a échoué. Vérifiez l'adresse et votre connexion.");}
+    showSent(email);
+  };
+}
+function showSent(email){
+  gate(`<h2>Consultez votre boîte de réception</h2>
+   <p>Un message vient d'être envoyé à <b>${esc(email)}</b>. Ouvrez le lien qu'il contient <b>sur cet appareil</b> pour entrer. Pensez à regarder dans les courriers indésirables.</p>
+   <form id="fOtp" novalidate>
+    <div class="field"><label for="sCode">Ou saisissez le code reçu dans le message</label><input id="sCode" inputmode="numeric" autocomplete="one-time-code" maxlength="10" placeholder="123456"></div>
+    <p class="err" id="cErr" hidden></p>
+    <button class="btn" type="submit">Valider le code</button>
+   </form>
+   <p><button class="lnk" type="button" id="lBack">Utiliser une autre adresse</button></p>`);
+  $("#lBack").onclick=()=>showLogin();
+  $("#fOtp").onsubmit=async e=>{e.preventDefault();
+    const token=$("#sCode").value.replace(/\s/g,"");if(token.length<6){$("#cErr").textContent="Saisissez le code complet.";$("#cErr").hidden=false;return;}
+    const {error}=await sb.auth.verifyOtp({email,token,type:"email"});
+    if(error){$("#cErr").textContent="Code incorrect ou expiré.";$("#cErr").hidden=false;return;}
+    enter();
+  };
+}
+function showOnboarding(email){
+  gate(`<h2>Bienvenue dans la résidence</h2><p class="ro">Connecté avec ${esc(email||"votre adresse e-mail")}. Renseignez votre logement pour demander l'accès au Conseil syndical.</p>
+   <form id="fOn" novalidate>
+    <div class="field"><label for="oName">Prénom et nom</label><input id="oName" autocomplete="name" maxlength="80" placeholder="Camille Dubois"></div>
+    <div class="field"><label for="oType">Vous êtes</label><select id="oType"><option value="">Choisir…</option><option>Copropriétaire résident</option><option>Locataire</option><option>Copropriétaire bailleur</option><option>Syndic</option><option>Prestataire</option></select></div>
+    <div class="grid2">
+      <div class="field"><label for="oCage">Cage</label><select id="oCage"><option value="">…</option><option>A</option><option>B</option><option>C</option></select></div>
+      <div class="field"><label for="oFloor">Étage</label><select id="oFloor"><option value="">…</option>${[0,1,2,3,4,5,6].map(i=>`<option value="${i}">${floorOf(i).label}</option>`).join("")}</select></div>
+    </div>
+    <div class="field"><label for="oLot">Logement</label><select id="oLot"><option value="">Choisir…</option>${desigOptions("LOT").map(([n,l])=>`<option value="${n}">${l}</option>`).join("")}</select><span class="ro" id="oLotHelp">Syndic ou prestataire : laissez la cage, l'étage et le logement vides.</span></div>
+    <div class="field"><label for="oCode">Code d'invitation de la copropriété</label><input id="oCode" autocapitalize="characters" autocomplete="off" maxlength="40" placeholder="Communiqué par le Conseil syndical"></div>
+    <p class="ro">En envoyant ce formulaire, vous acceptez que ces informations soient utilisées pour le suivi technique de l'immeuble, comme décrit dans la rubrique Données personnelles.</p>
+    <p class="err" id="oErr" hidden></p>
+    <button class="btn primary" type="submit">Envoyer ma demande</button>
+   </form>`,true);
+  $("#fOn").onsubmit=async e=>{e.preventDefault();
+    const err=m=>{$("#oErr").textContent=m;$("#oErr").hidden=false;};
+    const name=$("#oName").value.trim(),type=$("#oType").value,cage=$("#oCage").value,fl=$("#oFloor").value,lot=Number($("#oLot").value),code=$("#oCode").value.trim().toUpperCase();
+    const ext=type==="Syndic"||type==="Prestataire";
+    if(!name||!type) return err("Indiquez votre nom et votre qualité.");
+    if(!ext&&(!cage||fl===""||!(Number.isInteger(lot)&&lot>=1&&lot<=39))) return err("Indiquez votre cage, votre étage et votre logement.");
+    const btn=e.target.querySelector("[type=submit]");btn.disabled=true;
+    const {data,error}=await sb.rpc("request_access",{p_name:name,p_type:type,p_cage:ext?null:cage,p_floor:ext?null:Number(fl),p_lot:ext?null:lot,p_code:code});
+    btn.disabled=false;
+    if(error) return err("La demande n'a pas pu être envoyée. Vérifiez votre connexion et réessayez.");
+    if(data==="bad_code") return err("Code d'invitation incorrect. Vérifiez-le auprès du Conseil syndical.");
+    if(data==="locked") return err("Trop d'essais. Réessayez dans une heure.");
+    await enter();
+    toast(data==="cs_admin"?"Vous êtes le premier inscrit : vous administrez l'application.":"Demande envoyée au Conseil syndical.");
+  };
+}
+
+/* ---------- Entrée dans l'application ---------- */
+let entering=false;
+async function enter(){
+  if(entering) return;entering=true;
+  try{
+    const {data:{session}}=await sb.auth.getSession();
+    if(!session){S.me=null;showLogin();return;}
+    const {data:p,error}=await sb.from("profiles").select("*").eq("id",session.user.id).maybeSingle();
+    if(error){if(!S.me){gate(`<h2>Connexion impossible</h2><p>La base de données ne répond pas. Vérifiez votre connexion Internet.</p><button class="btn primary" id="gRetry">Réessayer</button>`,true);$("#gRetry").onclick=()=>enter();}return;}
+    if(!p){S.me=null;showOnboarding(session.user.email);return;}
+    const first=!S.me,prevRole=S.me&&S.me.role;S.me=rowToU(p);
+    if(first&&(S.me.role==="resident"||S.me.role==="pending")&&S.me.floor!=null) UI.floor=S.me.floor;
+    await refresh();ungate();renderAll();
+    if(!first&&prevRole==="pending"&&S.me.role!=="pending") toast("Votre accès a été validé par le Conseil syndical.");
+  } finally {entering=false;}
+}
+function boot(){
+  if(!sb){gate(`<h2>Configuration manquante</h2><p>Le fichier <span class="mono">config.js</span> doit contenir l'adresse du projet Supabase et sa clé publique.</p>`);return;}
+  const herr=/error_description=([^&]+)/.exec(location.hash||"");
+  sb.auth.onAuthStateChange(ev=>{
+    if(ev==="SIGNED_IN"&&!S.me) setTimeout(enter,0);
+    if(ev==="SIGNED_OUT"&&S.me){S.me=null;showLogin();}
+  });
+  if(herr){history.replaceState(null,"",location.pathname);showLogin("Ce lien de connexion a expiré ou a déjà servi. Demandez-en un nouveau.");return;}
+  enter();
+  const sync=()=>{if(S.me&&!document.hidden&&!$("#scrim")&&!UI.temp) enter();};
+  setInterval(sync,90000);document.addEventListener("visibilitychange",sync);
+}
+
+/* ---------- Données personnelles (RGPD) ---------- */
+function openPrivacy(){
+  const c=CFG.contact?esc(CFG.contact):"le Conseil syndical de la résidence";
+  openSheet(head("Données personnelles","Information des utilisateurs de l'application.")+`
+   <div class="legal">
+    <h3>Qui est responsable ?</h3><p>Le syndicat des copropriétaires de la Résidence 15 Fellini, représenté par son Conseil syndical. Contact : ${c}.</p>
+    <h3>Quelles données ?</h3><ul><li>Votre adresse e-mail, votre nom, votre qualité (copropriétaire, locataire…), votre cage, votre étage et votre logement.</li><li>Les signalements que vous déclarez : lieu, titre, description, date et nom de l'auteur.</li></ul>
+    <h3>Pour quoi faire ?</h3><p>Uniquement pour signaler et suivre les problèmes techniques de l'immeuble. Aucune publicité, aucune revente, aucun outil de mesure d'audience. Ce traitement repose sur l'intérêt légitime de la copropriété à entretenir l'immeuble.</p>
+    <h3>Qui y a accès ?</h3><ul><li>Le Conseil syndical et le syndic voient tous les signalements et la liste des comptes.</li><li>Un résident voit les parties communes, les parkings, les caves et les signalements de son propre logement. Les signalements des autres logements lui sont masqués.</li><li>Un prestataire ne voit que les signalements de sa spécialité.</li></ul>
+    <h3>Où sont-elles conservées ?</h3><p>Dans une base de données hébergée par Supabase, dans l'Union européenne. Les pages de l'application sont servies par GitHub Pages, qui ne reçoit aucune de ces données. Un jeton de session est gardé dans ce navigateur pour vous éviter de vous reconnecter.</p>
+    <h3>Combien de temps ?</h3><p>Votre compte est supprimé à votre demande ou à votre départ de la résidence. Les signalements sont conservés le temps utile au suivi technique de l'immeuble, puis supprimés par le Conseil syndical.</p>
+    <h3>Vos droits</h3><p>Vous pouvez demander l'accès à vos données, leur rectification ou leur effacement en vous adressant à ${c}. Vous pouvez aussi saisir la CNIL (cnil.fr).</p>
+   </div>
+   <div class="foot"><button class="btn" data-close>Fermer</button></div>`,true);
+}
+
+/* ---------- Administration CS (RG-SSO-03/04) ---------- */
+const PLAN_NAMES={1:"1er sous-sol",2:"2e sous-sol",3:"Rez-de-chaussée",4:"1er étage",5:"2e étage",6:"3e étage",7:"4e étage",8:"5e étage",9:"6e étage"};
+function openAdmin(){
+  const pend=S.users.filter(x=>x.role==="pending"),mem=S.users.filter(x=>x.role!=="pending");
+  const where=p=>p.lot?`<span>${desigLong("LOT",p.lot)}</span><span>Cage ${esc(p.cage)}</span><span>${floorOf(p.floor)?.label||""}</span>`:"";
+  openSheet(head("Administration","Réservé au Conseil syndical.")+`
+   <div class="box"><h3>Demandes d'accès en attente (${pend.length})</h3>
+    ${pend.length?pend.map(p=>`<div class="req"><div><b>${esc(p.name)}</b><div class="meta"><span>${esc(p.email)}</span><span>${esc(p.residentType)}</span>${where(p)}<span>${fmtDate(p.requested)}</span></div></div>
+      <div class="acts"><button class="btn primary" data-a="resident" data-u="${p.id}">Résident</button><button class="btn" data-a="cs_admin" data-u="${p.id}">Conseil syndical</button><button class="btn" data-a="syndic" data-u="${p.id}">Syndic</button><button class="btn" data-a="contractor" data-u="${p.id}">Prestataire</button><button class="btn danger" data-a="no" data-u="${p.id}">Refuser</button></div></div>`).join(""):`<p class="ro">Aucune demande en attente.</p>`}
+   </div>
+   <div class="box"><h3>Membres (${mem.length})</h3>
+    ${mem.map(p=>`<div class="member"><div><b>${esc(p.name)}</b><div class="meta"><span>${esc(p.email)}</span>${where(p)}</div></div>
+      <select data-role="${p.id}" aria-label="Rôle de ${esc(p.name)}">${["resident","cs_admin","syndic","contractor"].map(r=>`<option value="${r}" ${p.role===r?"selected":""}>${ROLES[r]}</option>`).join("")}</select>
+      ${p.role==="contractor"?`<select data-cat="${p.id}" aria-label="Spécialité de ${esc(p.name)}">${Object.keys(CATS).map(k=>`<option value="${k}" ${p.category===k?"selected":""}>${CATS[k]}</option>`).join("")}</select>`:""}
+      ${p.id===me().id?`<span class="ro">Vous</span>`:`<button class="btn danger" data-rm="${p.id}">Retirer</button>`}</div>`).join("")}
+   </div>
+   <div class="box"><h3>Code d'invitation de l'immeuble</h3><p class="ro">À communiquer aux résidents (affichage dans le hall, courrier). Changez-le s'il a circulé hors de la résidence.</p>
+    <div class="field"><label for="aCode">Code actuel</label><input id="aCode" class="mono" maxlength="40" value="${esc(S.inviteCode)}"></div>
+    <div><button class="btn" id="aCodeSave">Enregistrer le code</button></div></div>
+   <div class="box"><h3>Plans</h3><p class="ro">Sélectionnez d'un coup les 9 images des plans (fichiers dont le nom commence par 01 à 09). Elles sont rangées dans un espace privé, visible uniquement des utilisateurs connectés.</p>
+    <div class="field"><label for="aPlans">Images des plans</label><input id="aPlans" type="file" accept="image/*" multiple></div><p class="ro" id="aPlansMsg"></p></div>`,true);
+  const upd=async(id,patch,msg)=>{const {error}=await sb.from("profiles").update(patch).eq("id",id);if(error){fail(error,"Modification refusée");}else toast(msg);await refresh();renderAll();openAdmin();};
+  const del=async(p,msg)=>{const {error}=await sb.from("profiles").delete().eq("id",p.id);if(error){fail(error,"Suppression refusée");}else toast(msg);await refresh();renderAll();openAdmin();};
+  $("#layer").querySelectorAll("[data-a]").forEach(b=>b.onclick=()=>{const p=S.users.find(x=>x.id===b.dataset.u);if(!p)return;
+    if(b.dataset.a==="no") return del(p,`Demande de ${p.name} refusée.`);
+    upd(p.id,{role:b.dataset.a,category:b.dataset.a==="contractor"?"plumbing":null},`${p.name} : accès validé (${ROLES[b.dataset.a]}).`);});
+  $("#layer").querySelectorAll("[data-role]").forEach(s=>s.onchange=()=>upd(s.dataset.role,{role:s.value,category:s.value==="contractor"?"plumbing":null},"Rôle mis à jour."));
+  $("#layer").querySelectorAll("[data-cat]").forEach(s=>s.onchange=()=>upd(s.dataset.cat,{category:s.value},"Spécialité mise à jour."));
+  $("#layer").querySelectorAll("[data-rm]").forEach(b=>b.onclick=()=>{const p=S.users.find(x=>x.id===b.dataset.rm);if(!p)return;
+    if(b.dataset.sure) return del(p,`${p.name} n'a plus accès.`);
+    b.dataset.sure="1";b.textContent="Confirmer le retrait";});
+  $("#aCodeSave").onclick=async()=>{const v=$("#aCode").value.trim().toUpperCase();if(v.length<4){toast("Le code doit faire au moins 4 caractères.");return;}
+    const {error}=await sb.from("settings").update({invite_code:v}).eq("id",true);if(error){fail(error,"Code non enregistré");return;}
+    S.inviteCode=v;$("#aCode").value=v;toast("Code d'invitation mis à jour.");};
+  $("#aPlans").onchange=async e=>{const files=[...e.target.files],msg=$("#aPlansMsg");let ok=0;const bad=[];
+    for(const f of files){const m=/^0?([1-9])(?!\d)/.exec(f.name);if(!m){bad.push(f.name);continue;}
+      msg.textContent=`Envoi du plan ${PLAN_NAMES[m[1]]}…`;
+      const {error}=await sb.storage.from("plans").upload("p0"+m[1],f,{upsert:true,contentType:f.type||"image/png",cacheControl:"3600"});
+      if(error){console.error(error);bad.push(f.name);}else ok++;}
+    for(const k in imgs) delete imgs[k];for(const k in orig) delete orig[k];for(const k in variants) delete variants[k];
+    msg.textContent=`${ok} plan${ok>1?"s":""} enregistré${ok>1?"s":""}.`+(bad.length?` Non pris en compte : ${bad.join(", ")}.`:"");drawPlan();};
+}
+
+/* ---------- Ingestion WhatsApp & JSON IA (RG-ING) ---------- */
+const TECH=/(fuite|eau|infiltr|humid|panne|bloqu|grill|ascenseur|porte|huile|serrure|badge|bip|digicode|lumi[eè]re|n[ée]on|ampoule|[ée]lectri|minuterie|[ée]vier|wc|toilette|canalis|odeur|inond|cass[ée]|fissur|tag|d[ée]grad|poubelle|conteneur|sale|ferme-porte|interphone|chauffage|fosse|pompe)/i;
+function guessCat(s){s=s.toLowerCase();
+  if(/ascenseur/.test(s)) return "elevator";
+  if(/(fuite|eau|infiltr|humid|[ée]vier|wc|toilette|canalis|inond|fosse|pompe|chauffage)/.test(s)) return "plumbing";
+  if(/(lumi[eè]re|n[ée]on|ampoule|[ée]lectri|minuterie|grill|interphone)/.test(s)) return "electricity";
+  if(/(porte|serrure|badge|bip|digicode|ferme-porte)/.test(s)) return "door";
+  if(/(huile|sale|poubelle|conteneur|d[ée]chet|odeur)/.test(s)) return "cleanliness";
+  return "damage";}
+function resolveSpatial(s){
+  const l=s.toLowerCase();let floor=null,tt="COMMON",tid="",pos=null,room="NONE",lot;
+  let mp=l.match(/(?:place|parking)\s*(?:n[°o]?\s*)?(\d{1,3})/);if(mp&&+mp[1]>=1&&+mp[1]<=53)mp=[0,String(+mp[1]+67)];
+  const ma=l.match(/\b([bc])\s?(\d{2})\b/);
+  const ml=l.match(/(?:lot|appart(?:ement)?|logement)\s*(?:n[°o]?\s*)?(\d{1,2})\b/);
+  let mc=l.match(/cave\s*(?:n[°o]?\s*)?(\d{1,2})/);if(mc&&+mc[1]>=1&&+mc[1]<=28)mc=[0,String(+mc[1]+39)];
+  if(/rdc|rez[- ]de[- ]chauss/.test(l)) floor=0;
+  else if(/(2e|2[èe]me|second)\s*sous[- ]sol|-2\b/.test(l)) floor=-2;
+  else if(/sous[- ]sol|parking|cave|-1\b/.test(l)) floor=-1;
+  else {const m=l.match(/\b([1-6])\s*(?:er|e|[èe]me)\b/);if(m) floor=Number(m[1]);else if(/attique/.test(l)) floor=6;}
+  if(mp&&+mp[1]>=68&&+mp[1]<=120){const a=placeAnchor(+mp[1]);tt="PARKING";tid=mp[1];if(a){floor=a.floor;pos=a;}}
+  else if(mc&&+mc[1]>=40&&+mc[1]<=67){const a=caveAnchor(+mc[1]);tt="CAVE";tid=mc[1];floor=-1;pos=a;}
+  else if((ma&&APT2LOT[(ma[1]+ma[2]).toUpperCase()])||(ml&&+ml[1]>=1&&+ml[1]<=39)){lot=ma&&APT2LOT[(ma[1]+ma[2]).toUpperCase()]||+ml[1];tt="LOT";tid=String(lot);
+    if(/cuisine/.test(l)) room="CUISINE";else if(/(sdb|salle de bain|salle d'eau|douche|baignoire|wc)/.test(l)) room="SDB";
+    const fl=floor!=null&&LOT_ANCHORS[floor]&&LOT_ANCHORS[floor][lot]?floor:Object.keys(LOT_ANCHORS).map(Number).find(k=>LOT_ANCHORS[k][lot]);
+    if(fl!=null){floor=fl;const a=LOT_ANCHORS[fl][lot];pos=room!=="NONE"?{x:a[2],y:a[3]}:{x:a[0],y:a[1]};}}
+  if(floor==null) floor=0;
+  if(!pos){const cg=l.match(/(?:cage|ascenseur|hall|palier)\s*([abc])\b/);pos=Object.assign({},floorDefault(floor));if(cg)pos.x=(floor===6?CAGE_X6:CAGE_X)[cg[1].toUpperCase()];}
+  const j=()=>(Math.random()-.5)*2.4;
+  if(tt==="COMMON"){pos.x+=j();pos.y+=j();}
+  return {floor,targetType:tt,targetId:tid||"commun",lotNumber:lot,x:+pos.x.toFixed(2),y:+pos.y.toFixed(2),room};
+}
+function locLabel(sp,text){
+  if(sp.targetType==="PARKING"||sp.targetType==="CAVE") return desigShort(sp.targetType,sp.targetId);
+  if(sp.targetType==="LOT") return desigLong("LOT",sp.targetId)+(sp.room==="CUISINE"?" · cuisine":sp.room==="SDB"?" · salle d'eau":"");
+  const cg=text.toLowerCase().match(/(ascenseur|hall|palier|cage)\s*([abc])\b/);
+  return (cg?cg[1][0].toUpperCase()+cg[1].slice(1)+" "+cg[2].toUpperCase()+" · ":"")+floorOf(sp.floor).label;
+}
+const WA_SAMPLE=`[03/11/2026 08:12] Sophie G: Bonjour à tous, quelqu'un a reçu un colis Chronopost pour le 3e ?
+[03/11/2026 08:40] Marc L: L'ascenseur C est encore bloqué au 4e depuis ce matin
+[03/11/2026 09:05] Inès T: Merci Marc !
+[03/11/2026 12:31] Paul N: Il y a une fuite d'eau sous l'évier, cuisine de l'appartement C11, ça coule chez le voisin du dessous
+[03/11/2026 18:02] Julie R: Le néon au dessus du parking 28 est grillé, on ne voit rien
+[04/11/2026 07:55] Marc L: Bonne journée tout le monde
+[04/11/2026 19:20] Inès T: Porte du hall A qui ne ferme plus, le ferme-porte est cassé au RDC`;
+const JSON_SAMPLE=JSON.stringify([
+ {date:"2026-11-05",author:"Inès T.",floor:0,target_type:"COMMON",target_id:"local-velos",room_type:"NONE",category:"door",urgency:"medium",status:"OPEN",title:"Serrure du local vélos grippée",description:"La clé tourne difficilement, plusieurs résidents bloqués."},
+ {date:"2026-11-06",author:"Paul N.",floor:2,target_type:"LOT",target_id:"C24",room_type:"SDB",category:"plumbing",urgency:"high",status:"OPEN",title:"Dégât des eaux salle de bains C24",description:"Eau au sol provenant du plafond."},
+ {date:"2026-11-02",author:"Syndic",floor:-1,target_type:"PARKING",target_id:"3",room_type:"NONE",category:"electricity",urgency:"low",status:"IN_PROGRESS",title:"Prise de recharge parking 3 hors service",description:"Disjoncteur qui saute."}],null,2);
+function parseWhatsApp(txt){
+  const out=[];
+  txt.split(/\r?\n/).forEach(line=>{line=line.trim();if(!line)return;
+    const m=line.match(/^\[?(\d{1,2})\/(\d{1,2})\/(\d{2,4})[,\s]*(\d{1,2}:\d{2})?(?::\d{2})?\]?\s*-?\s*([^:]{1,40}):\s*(.+)$/);
+    if(!m){out.push({skip:true,raw:line,why:"Ligne non reconnue"});return;}
+    const [,d,mo,y,,author,msg]=m;const yy=y.length===2?"20"+y:y;
+    if(!TECH.test(msg)){out.push({skip:true,raw:`${author}: ${msg}`,why:"Discussion générale"});return;}
+    const sp=resolveSpatial(msg);
+    out.push({skip:false,raw:`${author}: ${msg}`,t:{date:`${yy}-${mo.padStart(2,"0")}-${d.padStart(2,"0")}`,author:author.trim(),...sp,location:locLabel(sp,msg),
+      title:msg.length>50?msg.slice(0,47).trim()+"…":msg,category:guessCat(msg),urgency:/(bloqu|inond|urgent|coule)/i.test(msg)?"high":"medium",status:"reported",description:msg,source:"whatsapp"}});
+  });return out;}
+function parseJsonIA(txt){
+  let arr;try{arr=JSON.parse(txt);}catch(e){throw new Error("JSON invalide : "+e.message);}
+  if(!Array.isArray(arr)) throw new Error("Le format attendu est un tableau [ … ] d'objets.");
+  const SM={OPEN:"reported",IN_PROGRESS:"in_progress",RESOLVED:"resolved"};
+  return arr.map((o,i)=>{
+    const errs=[];
+    if(!Number.isInteger(o.floor)||o.floor<-2||o.floor>6) errs.push("floor");
+    if(!["COMMON","LOT","PARKING","CAVE"].includes(o.target_type)) errs.push("target_type");
+    if(!CATS[o.category]) errs.push("category");
+    if(!URG[o.urgency]) errs.push("urgency");
+    if(!SM[o.status]) errs.push("status");
+    if(!o.title) errs.push("title");
+    if(errs.length) return {skip:true,raw:`Entrée ${i+1} : ${o.title||"sans titre"}`,why:"Champs invalides : "+errs.join(", ")};
+    const hint=(o.target_type==="LOT"?"lot ":o.target_type==="PARKING"?"place ":o.target_type==="CAVE"?"cave ":"")+(o.target_type!=="COMMON"?o.target_id:"")+" "+(o.room_type==="CUISINE"?"cuisine":o.room_type==="SDB"?"sdb":"");
+    let sp=resolveSpatial(hint+" "+(o.target_id||""));
+    if(sp.targetType==="COMMON"||sp.floor!==o.floor&&o.target_type!=="PARKING"&&o.target_type!=="CAVE"){const p=floorDefault(o.floor);sp=Object.assign(sp,{floor:o.floor,x:p.x+(Math.random()-.5)*3,y:p.y+(Math.random()-.5)*3});}
+    const resolved=sp.targetType===o.target_type;sp.targetType=o.target_type;if(!resolved)sp.targetId=String(o.target_id||"");if(o.target_type==="LOT")sp.lotNumber=Number(sp.targetId);
+    return {skip:false,raw:o.title,t:{date:o.date||today(),author:o.author||"Import IA",...sp,room:o.room_type||"NONE",location:o.target_type==="COMMON"?(String(o.target_id||"Partie commune")+" · "+floorOf(o.floor).label):locLabel(sp,""),
+      title:String(o.title).slice(0,50),category:o.category,urgency:o.urgency,status:SM[o.status],description:o.description||"",source:"json"}};
+  });}
+function openImport(){
+  let mode="wa",parsed=[];
+  openSheet(head("Importer des signalements","Depuis un export de groupe WhatsApp ou un fichier JSON produit par une IA.")+`
+   <div class="seg" id="iMode" role="group" aria-label="Source"><button data-m="wa" aria-pressed="true">Conversation WhatsApp</button><button data-m="json" aria-pressed="false">JSON IA</button></div>
+   <div class="field"><label for="iTxt" id="iLbl">Collez l'export de la conversation</label><textarea id="iTxt" class="code"></textarea><span class="ro" id="iHelp"></span></div>
+   <div><button class="btn" id="iRun">Analyser</button></div>
+   <p class="err" id="iErr" hidden></p>
+   <ul class="preview" id="iPrev"></ul>
+   <div class="foot"><button class="btn" data-close>Annuler</button><button class="btn primary" id="iGo" disabled>Importer</button></div>`,true);
+  const setMode=m=>{mode=m;$("#iMode").querySelectorAll("button").forEach(b=>b.setAttribute("aria-pressed",b.dataset.m===m));
+    $("#iTxt").value=m==="wa"?WA_SAMPLE:JSON_SAMPLE;$("#iLbl").textContent=m==="wa"?"Collez l'export de la conversation":"Collez le tableau JSON au format pivot";
+    $("#iHelp").textContent=m==="wa"?"Exemple pré-rempli. Les messages sans mot technique (politesse, colis, remerciements) sont ignorés.":"Exemple pré-rempli au format pivot de la règle RG-ING-03.";
+    parsed=[];$("#iPrev").innerHTML="";$("#iGo").disabled=true;$("#iErr").hidden=true;};
+  $("#iMode").querySelectorAll("button").forEach(b=>b.onclick=()=>setMode(b.dataset.m));setMode("wa");
+  $("#iRun").onclick=()=>{$("#iErr").hidden=true;
+    try{parsed=mode==="wa"?parseWhatsApp($("#iTxt").value):parseJsonIA($("#iTxt").value);}catch(e){$("#iErr").textContent=e.message;$("#iErr").hidden=false;return;}
+    const keep=parsed.filter(p=>!p.skip);
+    $("#iPrev").innerHTML=parsed.map(p=>p.skip?`<li class="skip" title="${esc(p.why)}">${esc(p.raw)} <span class="ro">· ${esc(p.why)}</span></li>`:
+      `<li><b>${esc(p.t.title)}</b><div class="meta"><span>${floorOf(p.t.floor).label}</span><span>${esc(p.t.location)}</span><span>${CATS[p.t.category]}</span><span class="pill ${p.t.status}">${STAT[p.t.status]}</span></div></li>`).join("");
+    $("#iGo").disabled=!keep.length;$("#iGo").textContent=keep.length?`Importer ${keep.length} signalement${keep.length>1?"s":""}`:"Rien à importer";};
+  $("#iGo").onclick=async()=>{const keep=parsed.filter(p=>!p.skip);$("#iGo").disabled=true;
+    const {error}=await sb.from("tickets").insert(keep.map(p=>tToRow(p.t)));
+    if(error){$("#iGo").disabled=false;fail(error,"Import refusé");return;}
+    await refresh();closeSheet();UI.scope="all";UI.status="all";renderAll();toast(`${keep.length} signalement${keep.length>1?"s":""} importé${keep.length>1?"s":""}.`);};
+}
+
+/* ---------- Export CSV (RG-DAT-02) ---------- */
+async function exportCsv(){
+  const cols=["ID","Niveau","Lieu","Titre","Categorie","Gravite","Statut","Date","Auteur","Description"];
+  const q=v=>'"'+String(v??"").replace(/"/g,'""')+'"';
+  const rows=visTickets().slice().sort((a,b)=>a.num-b.num).map(t=>[`T-${String(t.num).padStart(4,"0")}`,floorOf(t.floor).label,t.location,t.title,CATS[t.category],URG[t.urgency],STAT[t.status],t.date,t.author,t.description].map(q).join(";"));
+  const csv="﻿"+cols.join(";")+"\r\n"+rows.join("\r\n")+"\r\n";
+  const name=`signalements_fellini_${today()}.csv`;
+  const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([csv],{type:"text/csv;charset=utf-8"}));a.download=name;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},500);toast("Export CSV téléchargé.");
+}
+
+/* ---------- Contrôles ---------- */
+$("#waterSeg").querySelectorAll("button").forEach(b=>b.onclick=()=>{UI.water=b.dataset.w;$("#waterSeg").querySelectorAll("button").forEach(x=>x.setAttribute("aria-pressed",x===b));drawPlan();});
+$("#zoomSeg").querySelectorAll("button").forEach(b=>b.onclick=()=>{UI.zoom=Number(b.dataset.z);$("#planWrap").style.width=(UI.zoom*100)+"%";$("#zoomSeg").querySelectorAll("button").forEach(x=>x.setAttribute("aria-pressed",x===b));});
+$("#scopeSeg").querySelectorAll("button").forEach(b=>b.onclick=()=>{UI.scope=b.dataset.s;renderList();});
+boot();
+})();
+</script>
+</body>
+</html>
