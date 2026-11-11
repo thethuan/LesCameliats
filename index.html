@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="robots" content="noindex,nofollow">
-<title>Fellini Suivi Technique</title>
+<title>Les Caméliats – Suivi technique</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;700;800&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@500&display=swap">
 <style>
@@ -221,7 +221,7 @@ textarea.code{font-family:var(--f-mono);font-size:12px;min-height:170px}
   <div class="top-in">
     <div class="brand">
       <svg width="34" height="34" viewBox="0 0 34 34" aria-hidden="true"><rect width="34" height="34" rx="8" fill="var(--accent)"/><path d="M8 9h6v12h6V9h6v17H8z" fill="var(--accent-ink)"/></svg>
-      <div><h1>Résidence 15 Fellini</h1><small>Signalements &amp; suivi technique</small></div>
+      <div><h1>Les Caméliats</h1><small>Signalements &amp; suivi technique</small></div>
     </div>
     <div class="who" id="whoName" aria-label="Utilisateur connecté"></div>
     <div class="actions" id="actions"></div>
@@ -646,7 +646,7 @@ function openTicket(n){
 }
 
 /* ---------- Connexion par lien magique & demande d'accès (RG-SSO) ---------- */
-const GBRAND=`<div class="brand"><svg width="34" height="34" viewBox="0 0 34 34" aria-hidden="true"><rect width="34" height="34" rx="8" fill="var(--accent)"/><path d="M8 9h6v12h6V9h6v17H8z" fill="var(--accent-ink)"/></svg><div><h1>Résidence 15 Fellini</h1><small>Signalements &amp; suivi technique</small></div></div>`;
+const GBRAND=`<div class="brand"><svg width="34" height="34" viewBox="0 0 34 34" aria-hidden="true"><rect width="34" height="34" rx="8" fill="var(--accent)"/><path d="M8 9h6v12h6V9h6v17H8z" fill="var(--accent-ink)"/></svg><div><h1>Les Caméliats</h1><small>Signalements &amp; suivi technique</small></div></div>`;
 function gate(html,withOut){
   const g=$("#gate");
   g.innerHTML=`<div class="gate-card">${GBRAND}${html}<p class="gate-foot"><button class="lnk" type="button" id="gRgpd">Données personnelles</button>${withOut?`<button class="lnk" type="button" id="gOut">Se déconnecter</button>`:""}</p></div>`;
@@ -755,7 +755,7 @@ function openPrivacy(){
   const c=CFG.contact?esc(CFG.contact):"le Conseil syndical de la résidence";
   openSheet(head("Données personnelles","Information des utilisateurs de l'application.")+`
    <div class="legal">
-    <h3>Qui est responsable ?</h3><p>Le syndicat des copropriétaires de la Résidence 15 Fellini, représenté par son Conseil syndical. Contact : ${c}.</p>
+    <h3>Qui est responsable ?</h3><p>Le syndicat des copropriétaires de la résidence Les Caméliats, représenté par son Conseil syndical. Contact : ${c}.</p>
     <h3>Quelles données ?</h3><ul><li>Votre adresse e-mail, votre nom, votre qualité (copropriétaire, locataire…), votre cage, votre étage et votre logement.</li><li>Les signalements que vous déclarez : lieu, titre, description, date et nom de l'auteur.</li></ul>
     <h3>Pour quoi faire ?</h3><p>Uniquement pour signaler et suivre les problèmes techniques de l'immeuble. Aucune publicité, aucune revente, aucun outil de mesure d'audience. Ce traitement repose sur l'intérêt légitime de la copropriété à entretenir l'immeuble.</p>
     <h3>Qui y a accès ?</h3><ul><li>Le Conseil syndical et le syndic voient tous les signalements et la liste des comptes.</li><li>Un résident voit les parties communes, les parkings, les caves et les signalements de son propre logement. Les signalements des autres logements lui sont masqués.</li><li>Un prestataire ne voit que les signalements de sa spécialité.</li></ul>
@@ -920,7 +920,7 @@ async function exportCsv(){
   const q=v=>'"'+String(v??"").replace(/"/g,'""')+'"';
   const rows=visTickets().slice().sort((a,b)=>a.num-b.num).map(t=>[`T-${String(t.num).padStart(4,"0")}`,floorOf(t.floor).label,t.location,t.title,CATS[t.category],URG[t.urgency],STAT[t.status],t.date,t.author,t.description].map(q).join(";"));
   const csv="﻿"+cols.join(";")+"\r\n"+rows.join("\r\n")+"\r\n";
-  const name=`signalements_fellini_${today()}.csv`;
+  const name=`signalements_cameliats_${today()}.csv`;
   const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([csv],{type:"text/csv;charset=utf-8"}));a.download=name;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},500);toast("Export CSV téléchargé.");
 }
 

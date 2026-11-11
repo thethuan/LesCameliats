@@ -1,6 +1,6 @@
-# Fellini Suivi Technique
+# Les Caméliats – Suivi technique
 
-Application de signalement et de suivi technique de la Résidence 15 Fellini.
+Application de signalement et de suivi technique de la résidence Les Caméliats.
 Site statique (un fichier `index.html`) branché sur une base Supabase partagée.
 
 ## Contenu
