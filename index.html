@@ -216,6 +216,7 @@ body.locked .main{filter:blur(9px) grayscale(.5);pointer-events:none;user-select
 .lock-card h2{font-size:19px;margin:0 0 8px}
 .pin.priv{opacity:.8;filter:saturate(.6)}
 .pin.priv::before{border-style:dashed}
+@media (max-width:760px){body{padding-bottom:34px}.rgpd-fab{font-size:11px}}
 @media print{.rgpd-fab,.lock{display:none}}
 .member{display:flex;flex-wrap:wrap;gap:8px;align-items:center;border:1px solid var(--line);border-radius:10px;padding:8px 10px}
 .member>div:first-child{flex:1 1 180px;min-width:0}
@@ -495,6 +496,7 @@ function renderHeader(){
   if(can.export(u)) h+=`<button class="btn" id="aCsv">Export CSV</button>`;
   if(can.export(u)) h+=`<button class="btn" id="aPrint">Imprimer</button>`;
   if(can.admin(u)) h+=`<button class="btn" id="aAdm">Administration${pend?`<span class="badge" aria-label="${pend} demandes">${pend}</span>`:""}</button>`;
+  if(can.admin(u)) h+=`<button class="btn" id="aHist">Historique</button>`;
   h+=`<button class="btn ghost" id="aOut">Déconnexion</button>`;
   $("#actions").innerHTML=h;
   $("#aNew")&&($("#aNew").onclick=()=>toast("Touchez le plan à l'endroit du problème pour le signaler."));
@@ -502,6 +504,7 @@ function renderHeader(){
   $("#aCsv")&&($("#aCsv").onclick=exportCsv);
   $("#aPrint")&&($("#aPrint").onclick=()=>window.print());
   $("#aAdm")&&($("#aAdm").onclick=openAdmin);
+  $("#aHist")&&($("#aHist").onclick=()=>openHistory("trash"));
   $("#aOut").onclick=signOut;
 }
 function renderNotices(){
@@ -662,10 +665,10 @@ function openTicket(n){
   $("#dSaveOs")&&($("#dSaveOs").onclick=async()=>{
     const {error}=await sb.from("tickets").update({os_number:$("#dOs").value.trim().slice(0,40),assigned_contractor:$("#dCo").value.trim().slice(0,80)}).eq("num",n);if(error){fail(error,"Ordre de service non enregistré");return;}
     await refresh();renderList();toast("Ordre de service enregistré.");});
-  $("#dDel")&&($("#dDel").onclick=()=>{$("#dFoot").innerHTML=`<span class="err" style="margin-right:auto">Supprimer définitivement #${t.num} ?</span><button class="btn" id="dNo">Non</button><button class="btn danger" id="dYes">Oui, supprimer</button>`;
+  $("#dDel")&&($("#dDel").onclick=()=>{$("#dFoot").innerHTML=`<span class="err" style="margin-right:auto">Mettre #${t.num} à la corbeille ?</span><button class="btn" id="dNo">Non</button><button class="btn danger" id="dYes">Oui, supprimer</button>`;
     $("#dNo").onclick=()=>openTicket(n);$("#dYes").onclick=async()=>{
-      const {error}=await sb.from("tickets").delete().eq("num",n);if(error){fail(error,"Suppression impossible");return;}
-      await refresh();UI.sel=null;closeSheet();renderAll();toast(`Signalement #${n} supprimé.`);};});
+      const {error}=await sb.from("tickets").update({deleted_at:new Date().toISOString()}).eq("num",n);if(error){fail(error,"Suppression impossible");return;}
+      await refresh();UI.sel=null;closeSheet();renderAll();toast(`Signalement #${n} placé dans la corbeille (Historique, pour le restaurer).`);};});
 }
 
 /* ---------- Connexion par lien magique & demande d'accès (RG-SSO) ---------- */
@@ -790,7 +793,7 @@ function openPrivacy(){
     <h3>Pour quoi faire ?</h3><p>Uniquement pour signaler et suivre les problèmes techniques de l'immeuble. Aucune publicité, aucune revente, aucun outil de mesure d'audience. Ce traitement repose sur l'intérêt légitime de la copropriété à entretenir l'immeuble.</p>
     <h3>Qui y a accès ?</h3><ul><li>Le Conseil syndical et le syndic voient tous les signalements, le nom de leur auteur et la liste des comptes.</li><li>Un résident voit tous les signalements de la résidence, sans le nom de leur auteur (sauf les siens). Pour un incident dans le logement d'un autre résident, il voit seulement la catégorie, la gravité, le statut, la date et l'étage.</li><li>Un prestataire ne voit que les signalements de sa spécialité.</li><li>Un compte en attente de validation ne voit aucun signalement.</li></ul>
     <h3>Où sont-elles conservées ?</h3><p>Dans une base de données hébergée par Supabase, dans l'Union européenne. Les pages de l'application sont servies par GitHub Pages, qui ne reçoit aucune de ces données. L'envoi des e-mails de connexion est assuré par Brevo, société française. Si vous choisissez « Continuer avec Google », Google transmet à l'application votre adresse e-mail et votre nom pour vous identifier ; sinon, Google n'intervient pas. Un jeton de session est gardé dans ce navigateur pour vous éviter de vous reconnecter.</p>
-    <h3>Combien de temps ?</h3><p>Votre compte est supprimé à votre demande ou à votre départ de la résidence. Les signalements sont conservés le temps utile au suivi technique de l'immeuble, puis supprimés par le Conseil syndical.</p>
+    <h3>Combien de temps ?</h3><p>Un signalement supprimé est placé dans une corbeille que seul le Conseil syndical peut consulter ; il y reste jusqu'à sa suppression définitive par le Conseil syndical. Un journal des modifications (date, auteur de l'action, numéro du signalement) est tenu et n'est visible que du Conseil syndical. Votre compte est supprimé à votre demande ou à votre départ de la résidence. Les signalements sont conservés le temps utile au suivi technique de l'immeuble, puis supprimés par le Conseil syndical.</p>
     <h3>Vos droits</h3><p>Vous pouvez demander l'accès à vos données, leur rectification ou leur effacement en vous adressant à ${c}. Vous pouvez aussi saisir la CNIL (cnil.fr).</p>
    </div>
    <div class="foot"><button class="btn" data-close>Fermer</button></div>`,true);
@@ -798,6 +801,37 @@ function openPrivacy(){
 
 /* ---------- Administration CS (RG-SSO-03/04) ---------- */
 const PLAN_NAMES={1:"1er sous-sol",2:"2e sous-sol",3:"Rez-de-chaussée",4:"1er étage",5:"2e étage",6:"3e étage",7:"4e étage",8:"5e étage",9:"6e étage"};
+const LOGACT={created:"Créé",status:"Statut",os:"Ordre de service",edited:"Modifié",deleted:"Mis à la corbeille",restored:"Restauré",purged:"Supprimé définitivement"};
+const fmtDT=d=>{try{return new Date(d).toLocaleString("fr-FR",{day:"2-digit",month:"short",year:"numeric",hour:"2-digit",minute:"2-digit"});}catch(e){return d;}};
+async function openHistory(tab){
+  tab=tab||"trash";
+  const [tr,lg]=await Promise.all([sb.from("tickets_trash").select("*").order("deleted_at",{ascending:false}),sb.from("ticket_log").select("*").order("at",{ascending:false}).limit(300)]);
+  if(tr.error||lg.error){fail(tr.error||lg.error,"Historique indisponible");return;}
+  const trash=tr.data,log=lg.data;
+  const logDetail=l=>l.action==="status"?String(l.detail).split(" > ").map(k=>STAT[k]||k).join(" → "):l.action==="created"?"":esc(l.detail||"");
+  const trashHtml=trash.length?trash.map(t=>`<div class="req"><div><b>#${t.num} · ${esc(t.title)}</b>
+      <div class="meta"><span>${floorOf(t.floor)?floorOf(t.floor).label:""}</span><span>${esc(t.location)}</span><span>${CATS[t.category]}</span><span class="pill ${t.status}">${STAT[t.status]}</span></div>
+      <div class="meta"><span>Déclaré le ${fmtDate(t.date)}${t.author?" par "+esc(t.author):""}</span><span>Supprimé le ${fmtDT(t.deleted_at)} par ${esc(t.deleted_by_name)}</span></div></div>
+      <div class="acts"><button class="btn primary" data-restore="${t.num}">Restaurer</button><button class="btn danger" data-purge="${t.num}">Supprimer définitivement</button></div></div>`).join("")
+    :`<p class="ro">La corbeille est vide.</p>`;
+  const logHtml=log.length?log.map(l=>`<div class="req"><div><b>${LOGACT[l.action]||esc(l.action)}</b> · #${l.ticket_num}${l.ticket_title?" · "+esc(l.ticket_title):""}
+      <div class="meta"><span>${fmtDT(l.at)}</span><span>${esc(l.actor_name)}</span>${logDetail(l)?`<span>${logDetail(l)}</span>`:""}</div></div></div>`).join("")
+    :`<p class="ro">Aucune modification enregistrée pour l'instant.</p>`;
+  openSheet(head("Historique","Réservé au Conseil syndical.")+`
+   <div class="seg" id="hTabs" role="group" aria-label="Rubrique"><button data-t="trash" aria-pressed="${tab==="trash"}">Corbeille (${trash.length})</button><button data-t="log" aria-pressed="${tab==="log"}">Journal</button></div>
+   <div class="box" id="hBody">${tab==="trash"?`<p class="ro">Un incident supprimé reste ici, avec son auteur, jusqu'à ce que vous le supprimiez définitivement. Il n'apparaît plus pour les autres utilisateurs. Les incidents résolus, eux, restent dans l'onglet « Résolus » et peuvent être rouverts.</p>`+trashHtml:`<p class="ro">Les 300 dernières actions : créations, changements de statut, ordres de service, suppressions et restaurations.</p>`+logHtml}</div>
+   <div class="foot"><button class="btn" data-close>Fermer</button></div>`,true);
+  $("#hTabs").querySelectorAll("button").forEach(b=>b.onclick=()=>openHistory(b.dataset.t));
+  $("#layer").querySelectorAll("[data-restore]").forEach(b=>b.onclick=async()=>{
+    const {error}=await sb.from("tickets").update({deleted_at:null}).eq("num",Number(b.dataset.restore));
+    if(error){fail(error,"Restauration impossible");return;}
+    await refresh();renderAll();openHistory("trash");toast(`Signalement #${b.dataset.restore} restauré.`);});
+  $("#layer").querySelectorAll("[data-purge]").forEach(b=>b.onclick=async()=>{
+    if(!b.dataset.sure){b.dataset.sure="1";b.textContent="Confirmer : suppression irréversible";return;}
+    const {error}=await sb.from("tickets").delete().eq("num",Number(b.dataset.purge));
+    if(error){fail(error,"Suppression impossible");return;}
+    openHistory("trash");toast(`Signalement #${b.dataset.purge} supprimé définitivement.`);});
+}
 function openAdmin(){
   const pend=S.users.filter(x=>x.role==="pending"),mem=S.users.filter(x=>x.role!=="pending");
   const where=p=>p.lot?`<span>${desigLong("LOT",p.lot)}</span><span>Cage ${esc(p.cage)}</span><span>${floorOf(p.floor)?.label||""}</span>`:"";
