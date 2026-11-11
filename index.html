@@ -207,6 +207,16 @@ textarea.code{font-family:var(--f-mono);font-size:12px;min-height:170px}
 .gate-card .btn{justify-content:center;padding:10px}
 .lnk{background:none;border:0;padding:0;color:var(--accent);font:inherit;font-size:12.5px;text-decoration:underline;cursor:pointer}
 .gate-foot{display:flex;gap:14px;flex-wrap:wrap}
+.rgpd-fab{position:fixed;right:12px;bottom:calc(6px + env(safe-area-inset-bottom,0px));z-index:36;font-size:11.5px;opacity:.75;padding:3px 7px;border-radius:6px;background:color-mix(in srgb,var(--surface) 88%,transparent)}
+.rgpd-fab:hover{opacity:1}
+body.locked .main{filter:blur(9px) grayscale(.5);pointer-events:none;user-select:none}
+.lock{position:fixed;left:0;right:0;bottom:0;top:64px;z-index:18;display:flex;align-items:center;justify-content:center;padding:20px;background:color-mix(in srgb,var(--bg) 35%,transparent)}
+.lock[hidden]{display:none}
+.lock-card{background:var(--surface);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);padding:22px;max-width:420px;text-align:center}
+.lock-card h2{font-size:19px;margin:0 0 8px}
+.pin.priv{opacity:.8;filter:saturate(.6)}
+.pin.priv::before{border-style:dashed}
+@media print{.rgpd-fab,.lock{display:none}}
 .member{display:flex;flex-wrap:wrap;gap:8px;align-items:center;border:1px solid var(--line);border-radius:10px;padding:8px 10px}
 .member>div:first-child{flex:1 1 180px;min-width:0}
 .member select{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:6px 8px}
@@ -287,6 +297,8 @@ textarea.code{font-family:var(--f-mono);font-size:12px;min-height:170px}
 </main>
 <div id="layer"></div>
 <div id="gate" class="gate"><div class="gate-card"><p class="ro">Chargement…</p></div></div>
+<div id="lock" class="lock" hidden><div class="lock-card"><h2>Compte en attente de validation</h2><p class="ro">Le Conseil syndical doit valider votre demande d'accès. Vous verrez alors les signalements de la résidence. Cette page se met à jour toute seule.</p></div></div>
+<button class="lnk rgpd-fab" type="button" id="rgpdFab">Données personnelles</button>
 
 <script src="config.js"></script>
 <script src="vendor/supabase.js"></script>
@@ -360,7 +372,7 @@ function floorDefault(f){ return f<0?{x:50,y:50}:{x:50,y:58}; }
 const CFG=window.FELLINI_CONFIG||{};
 const sb=(CFG.url&&CFG.key&&window.supabase)?window.supabase.createClient(CFG.url,CFG.key):null;
 let S={me:null,tickets:[],users:[],inviteCode:"",hidden:0};
-const rowToT=r=>({num:r.num,floor:r.floor,x:+r.x,y:+r.y,targetType:r.target_type,targetId:r.target_id,lotNumber:r.lot_number??undefined,room:r.room,location:r.location,title:r.title,category:r.category,urgency:r.urgency,status:r.status,date:r.date,author:r.author,description:r.description,osNumber:r.os_number,assignedContractor:r.assigned_contractor,source:r.source});
+const rowToT=r=>({masked:r.detail===false,num:r.num,floor:r.floor,x:+r.x,y:+r.y,targetType:r.target_type,targetId:r.target_id,lotNumber:r.lot_number??undefined,room:r.room,location:r.location,title:r.title,category:r.category,urgency:r.urgency,status:r.status,date:r.date,author:r.author,description:r.description,osNumber:r.os_number,assignedContractor:r.assigned_contractor,source:r.source});
 const tToRow=t=>({floor:t.floor,x:t.x,y:t.y,target_type:t.targetType,target_id:String(t.targetId??""),lot_number:t.targetType==="LOT"?Number(t.lotNumber):null,room:t.room||"NONE",location:String(t.location||"").slice(0,120)||"Non précisé",title:String(t.title).slice(0,50),category:t.category,urgency:t.urgency,status:t.status||"reported",date:t.date,author:String(t.author||"").slice(0,80),description:String(t.description||"").slice(0,4000),os_number:t.osNumber||"",assigned_contractor:t.assignedContractor||"",source:t.source||"app"});
 const rowToU=r=>({id:r.id,name:r.name,role:r.role,lot:r.lot,cage:r.cage,floor:r.floor,residentType:r.resident_type||"",category:r.category||"",email:r.email||"",requested:String(r.requested_at||"").slice(0,10)});
 function fail(error,what){
@@ -370,9 +382,10 @@ function fail(error,what){
 }
 async function refresh(){
   if(!S.me) return false;
-  const [t,h]=await Promise.all([sb.from("tickets").select("*").order("num"),sb.rpc("hidden_private_count")]);
+  if(S.me.role==="pending"){S.tickets=[];S.hidden=0;S.users=[];S.inviteCode="";return true;}   // en attente : rien n'est demandé à la base
+  const t=await sb.from("tickets_feed").select("*").order("num");
   if(t.error) return fail(t.error,"Chargement impossible");
-  S.tickets=t.data.map(rowToT);S.hidden=h.error?0:(h.data||0);
+  S.tickets=t.data.map(rowToT);S.hidden=0;
   if(S.me.role==="cs_admin"){
     const [p,s]=await Promise.all([sb.from("profiles").select("*").order("requested_at"),sb.from("settings").select("invite_code").maybeSingle()]);
     if(!p.error) S.users=p.data.map(rowToU);
@@ -394,13 +407,11 @@ const can={
  export:u=>u.role==="cs_admin"||u.role==="syndic"};
 function visible(u,t){
   if(u.role==="cs_admin"||u.role==="syndic") return true;
+  if(u.role==="pending") return false;              // en attente : aucun signalement
   if(u.role==="contractor") return t.category===u.category;
-  if(t.targetType!=="LOT") return true;            // parties communes, places, caves
-  if(u.role==="resident") return Number(t.lotNumber)===Number(u.lot);
-  return false;                                     // pending : aucun lot privatif
+  return true;                                      // CS, syndic, résident : la base masque déjà l'auteur et le détail des logements des autres
 }
 const visTickets=()=>S.tickets.filter(t=>visible(me(),t));
-const hiddenPrivate=()=>S.hidden;   // compté côté serveur : les signalements masqués ne sont jamais envoyés au navigateur
 
 /* ---------- Utilitaires ---------- */
 const $=s=>document.querySelector(s);
@@ -442,6 +453,7 @@ function variant(fid,mode,im){
 }
 let drawToken=0;
 async function drawPlan(){
+  if(me()&&me().role==="pending"){ctx.clearRect(0,0,2752,1536);return;}   // aucun plan pour un compte en attente
   const tk=++drawToken,f=floorOf(UI.floor),im=await loadImg(f);if(tk!==drawToken) return;
   ctx.clearRect(0,0,2752,1536);
   if(!im){delete imgs[f.id];ctx.fillStyle="#777";ctx.font="44px sans-serif";ctx.fillText("Plan non chargé pour ce niveau.",80,130);ctx.font="34px sans-serif";ctx.fillText("Le Conseil syndical peut l'ajouter depuis Administration, rubrique Plans.",80,190);return;}
@@ -483,22 +495,19 @@ function renderHeader(){
   if(can.export(u)) h+=`<button class="btn" id="aCsv">Export CSV</button>`;
   if(can.export(u)) h+=`<button class="btn" id="aPrint">Imprimer</button>`;
   if(can.admin(u)) h+=`<button class="btn" id="aAdm">Administration${pend?`<span class="badge" aria-label="${pend} demandes">${pend}</span>`:""}</button>`;
-  h+=`<button class="btn ghost" id="aRgpd">Données personnelles</button><button class="btn ghost" id="aOut">Déconnexion</button>`;
+  h+=`<button class="btn ghost" id="aOut">Déconnexion</button>`;
   $("#actions").innerHTML=h;
   $("#aNew")&&($("#aNew").onclick=()=>toast("Touchez le plan à l'endroit du problème pour le signaler."));
   $("#aImp")&&($("#aImp").onclick=openImport);
   $("#aCsv")&&($("#aCsv").onclick=exportCsv);
   $("#aPrint")&&($("#aPrint").onclick=()=>window.print());
   $("#aAdm")&&($("#aAdm").onclick=openAdmin);
-  $("#aRgpd").onclick=openPrivacy;
   $("#aOut").onclick=signOut;
 }
 function renderNotices(){
   const u=me();let h="";
-  if(u.role==="resident"){const n=hiddenPrivate();
-    h+=`<div class="notice"><span>🔒</span><span>Vue résident, ${desigLong("LOT",u.lot).replace(/^(Appartement|Studio)/,m=>m.toLowerCase())} (cage ${esc(u.cage)}, ${floorOf(u.floor)?.label||""}). ${n?`<b>${n} signalement${n>1?"s":""} concernant d'autres logements ${n>1?"sont masqués":"est masqué"}</b> au titre du respect de la vie privée.`:"Les signalements des autres logements ne vous sont jamais transmis, au titre du respect de la vie privée."}</span></div>`;}
-  if(u.role==="pending"){const n=hiddenPrivate();
-    h+=`<div class="notice"><span>⏳</span><span><b>Compte en attente de validation par le Conseil syndical.</b> Vous voyez uniquement les parties communes, en lecture seule. ${n} signalement${n>1?"s":""} privatif${n>1?"s":""} masqué${n>1?"s":""}.</span></div>`;}
+  if(u.role==="resident"){
+    h+=`<div class="notice"><span>👁</span><span>Vue résident, ${desigLong("LOT",u.lot).replace(/^(Appartement|Studio)/,m=>m.toLowerCase())} (cage ${esc(u.cage)}, ${floorOf(u.floor)?.label||""}). Vous voyez tous les signalements de la résidence. Pour le logement d'un autre résident, seuls la catégorie, la gravité et le statut s'affichent, au titre du respect de la vie privée.</span></div>`;}
   if(u.role==="contractor"){h+=`<div class="notice"><span>🔧</span><span>Vue prestataire : seuls les signalements <b>${CATS[u.category]}</b> sont visibles. Vous pouvez faire évoluer leur statut.</span></div>`;}
   $("#notices").innerHTML=h;
 }
@@ -515,9 +524,13 @@ function renderPlanHead(){
   $("#lvlSub").textContent=`Niveau ${f.id} · ${f.sub}`;
   $("#planHint").textContent=can.declare(u)?"Touchez une pièce ou une zone du plan pour y déclarer un incident. La zone touchée pré-remplit la localisation, et une pièce d'eau pré-remplit la catégorie Plomberie.":"Votre profil ne permet pas de déclarer d'incident. Touchez une épingle pour voir le détail.";
 }
+function pinPos(t){   // incident dans le logement d'un autre : épingle générique (étage seulement), jamais l'emplacement exact
+  if(!t.masked) return {x:t.x,y:t.y};
+  const b=floorDefault(t.floor);return {x:b.x+((t.num*53)%41-20)*0.9,y:b.y+((t.num*29)%23-11)*0.8};
+}
 function renderPins(){
   const vt=visTickets().filter(t=>t.floor===UI.floor&&(UI.status==="all"||(UI.status==="active"?t.status!=="resolved":t.status===UI.status)));
-  let h=vt.map(t=>`<button class="pin ${t.status}${UI.sel===t.num?" sel":""}" style="left:${t.x}%;top:${t.y}%" data-n="${t.num}" title="#${t.num} ${esc(t.title)}" aria-label="Signalement ${t.num} : ${esc(t.title)}"><span>${t.num}</span></button>`).join("");
+  let h=vt.map(t=>{const q=pinPos(t);return `<button class="pin ${t.status}${t.masked?" priv":""}${UI.sel===t.num?" sel":""}" style="left:${q.x}%;top:${q.y}%" data-n="${t.num}" title="#${t.num} ${esc(t.title)}" aria-label="Signalement ${t.num} : ${esc(t.title)}"><span>${t.num}</span></button>`;}).join("");
   if(UI.temp&&UI.temp.floor===UI.floor) h+=`<div class="pin temp" style="left:${UI.temp.x}%;top:${UI.temp.y}%"><span>+</span></div>`;
   $("#pins").innerHTML=h;
   $("#pins").querySelectorAll(".pin[data-n]").forEach(p=>p.onclick=e=>{e.stopPropagation();openTicket(Number(p.dataset.n));});
@@ -544,7 +557,7 @@ function renderList(){
     </div></li>`).join("");
   $("#list").querySelectorAll(".item").forEach(li=>{const go=()=>{const t=S.tickets.find(x=>x.num===Number(li.dataset.n));if(t&&t.floor!==UI.floor){UI.floor=t.floor;renderAll();}openTicket(Number(li.dataset.n));};li.onclick=go;li.onkeydown=e=>{if(e.key==="Enter")go();};});
 }
-function renderAll(){renderHeader();renderNotices();renderLevels();renderPlanHead();drawPlan();renderPins();renderKpis();renderList();}
+function renderAll(){const lk=me().role==="pending";document.body.classList.toggle("locked",lk);$("#lock").hidden=!lk;renderHeader();renderNotices();renderLevels();renderPlanHead();drawPlan();renderPins();renderKpis();renderList();}
 
 /* ---------- Feuilles ---------- */
 function openSheet(html,wide){
@@ -607,9 +620,12 @@ function openCreate(zone,x,y){
     const row=tToRow({floor:UI.floor,x,y,targetType:cur,targetId:cur==="COMMON"?"zone-"+cage:String(n),lotNumber:cur==="LOT"?n:undefined,
       location:$("#nLoc").value.trim()||loc,title,category:catv,urgency:$("#nUrg").value,status:"reported",date:today(),author:u.name,description:$("#nDesc").value.trim(),room:zone.k==="water"?"CUISINE":"NONE"});
     const btn=e.target.querySelector("[type=submit]");btn.disabled=true;
-    const {data,error}=await sb.from("tickets").insert(row).select().single();
+    const {error}=await sb.from("tickets").insert(row);
     if(error){btn.disabled=false;fail(error,"Signalement non enregistré");return;}
-    await refresh();UI.temp=null;closeSheet();UI.sel=data.num;renderAll();toast(`Signalement #${data.num} enregistré.`);
+    const before=new Set(S.tickets.map(x=>x.num));
+    await refresh();UI.temp=null;closeSheet();
+    const created=S.tickets.filter(x=>!before.has(x.num)).sort((a,b)=>b.num-a.num)[0];
+    UI.sel=created?created.num:null;renderAll();toast(created?`Signalement #${created.num} enregistré.`:"Signalement enregistré.");
   };
 }
 
@@ -618,6 +634,13 @@ function openTicket(n){
   const t=S.tickets.find(x=>x.num===n),u=me();if(!t||!visible(u,t)) return;
   UI.sel=n;renderPins();renderList();
   const f=floorOf(t.floor);
+  if(t.masked){
+    openSheet(head(`#${t.num} · Incident dans un logement privé`,esc(f.label))+`
+     <dl class="dl"><dt>Catégorie</dt><dd>${CATS[t.category]}</dd><dt>Gravité</dt><dd class="${t.urgency==="high"?"urg-high":""}">${URG[t.urgency]}</dd><dt>Statut</dt><dd><span class="pill ${t.status}">${STAT[t.status]}</span></dd><dt>Déclaré le</dt><dd>${fmtDate(t.date)}</dd></dl>
+     <p class="ro">Les détails d'un incident dans un logement privé ne sont visibles que par le résident concerné, le Conseil syndical et le syndic.</p>
+     <div class="foot"><button class="btn" data-close>Fermer</button></div>`);
+    return;
+  }
   const st=can.status(u,t)?`<div class="seg" id="dSt" role="group" aria-label="Statut">${Object.keys(STAT).map(k=>`<button data-s="${k}" aria-pressed="${t.status===k}">${STAT[k]}</button>`).join("")}</div>`:`<span class="pill ${t.status}">${STAT[t.status]}</span> <span class="ro">Lecture seule</span>`;
   const os=can.os(u)?`<div class="grid2"><div class="field"><label for="dOs">N° d'ordre de service</label><input id="dOs" class="mono" value="${esc(t.osNumber)}" placeholder="OS-2026-105"></div><div class="field"><label for="dCo">Entreprise mandatée</label><input id="dCo" value="${esc(t.assignedContractor)}" placeholder="Ets Martin Plomberie"></div></div><div><button class="btn" id="dSaveOs">Enregistrer l'OS</button></div>`
     :`<div class="meta">${t.osNumber?`<span class="tag mono">${esc(t.osNumber)}</span>`:`<span class="ro">Pas encore d'ordre de service</span>`}${t.assignedContractor?`<span class="tag">${esc(t.assignedContractor)}</span>`:""}</div>`;
@@ -626,7 +649,7 @@ function openTicket(n){
     <dt>Catégorie</dt><dd>${CATS[t.category]}</dd>
     <dt>Gravité</dt><dd class="${t.urgency==="high"?"urg-high":""}">${URG[t.urgency]}</dd>
     <dt>Concerne</dt><dd>${t.targetType!=="COMMON"?esc(desigLong(t.targetType,t.targetId))+` <span class="ro">(lot ${esc(t.targetId)})</span>`:TT.COMMON}${t.targetType==="LOT"?' <span class="tag priv">Privatif</span>':""}</dd>
-    <dt>Déclaré le</dt><dd>${fmtDate(t.date)} par ${esc(t.author)}</dd>
+    <dt>Déclaré le</dt><dd>${fmtDate(t.date)}${t.author?" par "+esc(t.author):""}</dd>
     <dt>Origine</dt><dd>${t.source==="whatsapp"?"Passerelle WhatsApp":t.source==="json"?"Import JSON IA":"Application"}</dd>
     <dt>Description</dt><dd>${esc(t.description)||"<span class='ro'>Aucune</span>"}</dd>
    </dl>
@@ -649,8 +672,8 @@ function openTicket(n){
 const GBRAND=`<div class="brand"><svg width="34" height="34" viewBox="0 0 34 34" aria-hidden="true"><rect width="34" height="34" rx="8" fill="var(--accent)"/><path d="M8 9h6v12h6V9h6v17H8z" fill="var(--accent-ink)"/></svg><div><h1>Les Caméliats</h1><small>Signalements &amp; suivi technique</small></div></div>`;
 function gate(html,withOut){
   const g=$("#gate");
-  g.innerHTML=`<div class="gate-card">${GBRAND}${html}<p class="gate-foot"><button class="lnk" type="button" id="gRgpd">Données personnelles</button>${withOut?`<button class="lnk" type="button" id="gOut">Se déconnecter</button>`:""}</p></div>`;
-  g.hidden=false;$("#gRgpd").onclick=openPrivacy;$("#gOut")&&($("#gOut").onclick=signOut);
+  g.innerHTML=`<div class="gate-card">${GBRAND}${html}<p class="gate-foot">${withOut?`<button class="lnk" type="button" id="gOut">Se déconnecter</button>`:""}</p></div>`;
+  g.hidden=false;$("#gOut")&&($("#gOut").onclick=signOut);
 }
 function ungate(){const g=$("#gate");g.hidden=true;g.innerHTML="";}
 async function signOut(){$("#layer").innerHTML="";try{await sb.auth.signOut();}catch(e){}S.me=null;S.tickets=[];S.users=[];showLogin();}
@@ -744,6 +767,7 @@ async function enter(){
   } finally {entering=false;}
 }
 function boot(){
+  $("#rgpdFab").onclick=openPrivacy;
   if(!sb){gate(`<h2>Configuration manquante</h2><p>Le fichier <span class="mono">config.js</span> doit contenir l'adresse du projet Supabase et sa clé publique.</p>`);return;}
   const herr=/error_description=([^&]+)/.exec(location.hash||"");
   sb.auth.onAuthStateChange(ev=>{
@@ -764,7 +788,7 @@ function openPrivacy(){
     <h3>Qui est responsable ?</h3><p>Le syndicat des copropriétaires de la résidence Les Caméliats, représenté par son Conseil syndical. Contact : ${c}.</p>
     <h3>Quelles données ?</h3><ul><li>Votre adresse e-mail, votre nom, votre qualité (copropriétaire, locataire…), votre cage, votre étage et votre logement.</li><li>Les signalements que vous déclarez : lieu, titre, description, date et nom de l'auteur.</li></ul>
     <h3>Pour quoi faire ?</h3><p>Uniquement pour signaler et suivre les problèmes techniques de l'immeuble. Aucune publicité, aucune revente, aucun outil de mesure d'audience. Ce traitement repose sur l'intérêt légitime de la copropriété à entretenir l'immeuble.</p>
-    <h3>Qui y a accès ?</h3><ul><li>Le Conseil syndical et le syndic voient tous les signalements et la liste des comptes.</li><li>Un résident voit les parties communes, les parkings, les caves et les signalements de son propre logement. Les signalements des autres logements lui sont masqués.</li><li>Un prestataire ne voit que les signalements de sa spécialité.</li></ul>
+    <h3>Qui y a accès ?</h3><ul><li>Le Conseil syndical et le syndic voient tous les signalements, le nom de leur auteur et la liste des comptes.</li><li>Un résident voit tous les signalements de la résidence, sans le nom de leur auteur (sauf les siens). Pour un incident dans le logement d'un autre résident, il voit seulement la catégorie, la gravité, le statut, la date et l'étage.</li><li>Un prestataire ne voit que les signalements de sa spécialité.</li><li>Un compte en attente de validation ne voit aucun signalement.</li></ul>
     <h3>Où sont-elles conservées ?</h3><p>Dans une base de données hébergée par Supabase, dans l'Union européenne. Les pages de l'application sont servies par GitHub Pages, qui ne reçoit aucune de ces données. L'envoi des e-mails de connexion est assuré par Brevo, société française. Si vous choisissez « Continuer avec Google », Google transmet à l'application votre adresse e-mail et votre nom pour vous identifier ; sinon, Google n'intervient pas. Un jeton de session est gardé dans ce navigateur pour vous éviter de vous reconnecter.</p>
     <h3>Combien de temps ?</h3><p>Votre compte est supprimé à votre demande ou à votre départ de la résidence. Les signalements sont conservés le temps utile au suivi technique de l'immeuble, puis supprimés par le Conseil syndical.</p>
     <h3>Vos droits</h3><p>Vous pouvez demander l'accès à vos données, leur rectification ou leur effacement en vous adressant à ${c}. Vous pouvez aussi saisir la CNIL (cnil.fr).</p>
@@ -863,17 +887,64 @@ const JSON_SAMPLE=JSON.stringify([
  {date:"2026-11-05",author:"Inès T.",floor:0,target_type:"COMMON",target_id:"local-velos",room_type:"NONE",category:"door",urgency:"medium",status:"OPEN",title:"Serrure du local vélos grippée",description:"La clé tourne difficilement, plusieurs résidents bloqués."},
  {date:"2026-11-06",author:"Paul N.",floor:2,target_type:"LOT",target_id:"C24",room_type:"SDB",category:"plumbing",urgency:"high",status:"OPEN",title:"Dégât des eaux salle de bains C24",description:"Eau au sol provenant du plafond."},
  {date:"2026-11-02",author:"Syndic",floor:-1,target_type:"PARKING",target_id:"3",room_type:"NONE",category:"electricity",urgency:"low",status:"IN_PROGRESS",title:"Prise de recharge parking 3 hors service",description:"Disjoncteur qui saute."}],null,2);
+const PHONE_G=/(?:\+|00)\d{1,3}(?:[\s.\-]?\d){8,11}|\b0\d(?:[\s.\-]?\d{2}){4}\b/g;
+const PHONE_1=/(?:\+|00)\d{1,3}(?:[\s.\-]?\d){8,11}|\b0\d(?:[\s.\-]?\d{2}){4}\b/;
+const maskPhones=t=>String(t).replace(PHONE_G,"[numéro masqué]");   // un numéro de téléphone n'est jamais conservé
+function cleanAuthor(a){a=String(a||"").replace(/[~*_]/g,"").trim();
+  if(!a||/^[\d+\s().\-]+$/.test(a)||PHONE_1.test(a)) return "Résident";return a.slice(0,40);}
+const SYSMSG=/(chiffr[ée]s? de bout en bout|m[ée]dias? omis|image absente|vid[ée]o absente|a ajout[ée]|a quitt[ée]|a cr[ée][ée] le groupe|message supprim[ée])/i;
 function parseWhatsApp(txt){
+  const clean=String(txt||"").replace(/[‎‏‪-‮]/g,"").replace(/[  ]/g," ").replace(/\*+/g,"").replace(/\r/g,"");
+  const H1=/^\[?\s*(\d{1,2})[\/.](\d{1,2})[\/.](\d{2,4})\s*[,;]?\s*(?:à\s*)?(\d{1,2}[:h]\d{2})(?::\d{2})?(?:\s*[ap]\.?m\.?)?\s*\]?\s*[-–—]?\s*([^:\n]{1,60}?)\s*:\s*(.*)$/i;
+  const H2=/^\[\s*(\d{1,2}[:h]\d{2})(?::\d{2})?\s*\]\s*[-–—]?\s*([^:\n]{1,60}?)\s*:\s*(.*)$/;
+  const H3=/^(\d{1,2}:\d{2})\s*[-–—]\s*([^:\n]{1,60}?)\s*:\s*(.*)$/;
+  let msgs=[],cur=null,lastDate=today(),sawHeader=false;
+  clean.split("\n").forEach(raw=>{const line=raw.trim();
+    let m=line.match(H1),d,au,body;
+    if(m){const yy=m[3].length===2?"20"+m[3]:m[3];d=`${yy}-${m[2].padStart(2,"0")}-${m[1].padStart(2,"0")}`;au=m[5];body=m[6];}
+    else if((m=line.match(H2))){d=lastDate;au=m[2];body=m[3];}
+    else if((m=line.match(H3))){d=lastDate;au=m[2];body=m[3];}
+    if(m){sawHeader=true;lastDate=d;cur={date:d,author:cleanAuthor(au),text:body};msgs.push(cur);return;}
+    if(cur&&line) cur.text+="\n"+line;          // suite d'un message sur plusieurs lignes
+  });
+  if(!sawHeader) msgs=clean.split(/\n\s*\n/).map(x=>x.trim()).filter(Boolean).map(x=>({date:today(),author:"Résident",text:x}));   // texte libre : un message par paragraphe
   const out=[];
-  txt.split(/\r?\n/).forEach(line=>{line=line.trim();if(!line)return;
-    const m=line.match(/^\[?(\d{1,2})\/(\d{1,2})\/(\d{2,4})[,\s]*(\d{1,2}:\d{2})?(?::\d{2})?\]?\s*-?\s*([^:]{1,40}):\s*(.+)$/);
-    if(!m){out.push({skip:true,raw:line,why:"Ligne non reconnue"});return;}
-    const [,d,mo,y,,author,msg]=m;const yy=y.length===2?"20"+y:y;
-    if(!TECH.test(msg)){out.push({skip:true,raw:`${author}: ${msg}`,why:"Discussion générale"});return;}
-    const sp=resolveSpatial(msg);
-    out.push({skip:false,raw:`${author}: ${msg}`,t:{date:`${yy}-${mo.padStart(2,"0")}-${d.padStart(2,"0")}`,author:author.trim(),...sp,location:locLabel(sp,msg),
-      title:msg.length>50?msg.slice(0,47).trim()+"…":msg,category:guessCat(msg),urgency:/(bloqu|inond|urgent|coule)/i.test(msg)?"high":"medium",status:"reported",description:msg,source:"whatsapp"}});
+  msgs.forEach(g=>{
+    const body=maskPhones(g.text.replace(/\s*\n\s*/g," ").replace(/\s{2,}/g," ").trim());
+    if(!body) return;
+    const shown=(g.author&&g.author!=="Résident"?g.author+" : ":"")+body,prev=shown.length>180?shown.slice(0,177)+"…":shown;
+    if(SYSMSG.test(body)&&body.length<140){out.push({skip:true,raw:prev,why:"Message système"});return;}
+    if(!TECH.test(body)){out.push({skip:true,raw:prev,why:"Discussion générale, sans incident technique"});return;}
+    const sents=body.match(/[^.!?…]+[.!?…]*/g)||[body];
+    const best=(sents.find(x=>TECH.test(x))||body).trim(),title=(best.charAt(0).toUpperCase()+best.slice(1));
+    const sp=resolveSpatial(body);
+    out.push({skip:false,raw:prev,t:{date:g.date,author:g.author,...sp,location:locLabel(sp,body),
+      title:title.length>50?title.slice(0,47).trim()+"…":title,category:guessCat(body),
+      urgency:/(bloqu|inond|urgent|coule|danger|fum[ée]e|gaz|incendie|court-circuit|[ée]lectrocut)/i.test(body)?"high":"medium",
+      status:"reported",description:(sents.filter(x=>TECH.test(x)).join(" ").trim()||body).slice(0,4000),source:"whatsapp"}});
   });return out;}
+const AI_PROMPT=()=>`Tu aides le conseil syndical d'une copropriété. Ci-dessous, une conversation de groupe. Extrais UNIQUEMENT les incidents techniques (fuite, panne, porte, ascenseur, électricité, propreté, dégradation) et réponds par un tableau JSON, sans aucun texte autour.
+
+Règles :
+- Ignore les politesses, colis, remerciements, votes, assemblée générale et discussions administratives.
+- Un objet par incident : fusionne les messages qui parlent du même incident.
+- N'écris jamais de numéro de téléphone ni de nom de famille complet. author : prénom et initiale, ou "Résident".
+- date : AAAA-MM-JJ. floor : entier de -2 à 6 (0 = rez-de-chaussée, -1 = 1er sous-sol, -2 = 2e sous-sol).
+- target_type : COMMON (partie commune), LOT (un logement, target_id = sa désignation, par exemple "C24"), PARKING (target_id = numéro de 1 à 53) ou CAVE (target_id = numéro de 1 à 28). Pour COMMON, target_id = court texte (par exemple "ascenseur C").
+- room_type : NONE, CUISINE ou SDB.
+- category : plumbing, electricity, door, elevator, cleanliness ou damage.
+- urgency : low, medium ou high. status : OPEN, IN_PROGRESS ou RESOLVED.
+- title : 50 caractères maximum. description : une ou deux phrases.
+
+Exemple de format :
+${JSON_SAMPLE}
+
+Conversation à analyser :
+[COLLEZ ICI LA CONVERSATION]`;
+async function copyText(t){
+  try{await navigator.clipboard.writeText(t);return true;}catch(e){
+    try{const a=document.createElement("textarea");a.value=t;a.style.position="fixed";a.style.opacity="0";document.body.appendChild(a);a.select();const ok=document.execCommand("copy");a.remove();return ok;}catch(e2){return false;}}
+}
 function parseJsonIA(txt){
   let arr;try{arr=JSON.parse(txt);}catch(e){throw new Error("JSON invalide : "+e.message);}
   if(!Array.isArray(arr)) throw new Error("Le format attendu est un tableau [ … ] d'objets.");
@@ -899,16 +970,20 @@ function openImport(){
   openSheet(head("Importer des signalements","Depuis un export de groupe WhatsApp ou un fichier JSON produit par une IA.")+`
    <div class="seg" id="iMode" role="group" aria-label="Source"><button data-m="wa" aria-pressed="true">Conversation WhatsApp</button><button data-m="json" aria-pressed="false">JSON IA</button></div>
    <div class="field"><label for="iTxt" id="iLbl">Collez l'export de la conversation</label><textarea id="iTxt" class="code"></textarea><span class="ro" id="iHelp"></span></div>
+   <div id="iAi" hidden class="field"><button class="btn" type="button" id="iAiBtn">Copier la consigne pour une IA</button><span class="ro">Collez cette consigne dans l'IA de votre choix, ajoutez la conversation (sans numéros de téléphone), puis collez ici le JSON obtenu.</span></div>
    <div><button class="btn" id="iRun">Analyser</button></div>
    <p class="err" id="iErr" hidden></p>
    <ul class="preview" id="iPrev"></ul>
    <div class="foot"><button class="btn" data-close>Annuler</button><button class="btn primary" id="iGo" disabled>Importer</button></div>`,true);
   const setMode=m=>{mode=m;$("#iMode").querySelectorAll("button").forEach(b=>b.setAttribute("aria-pressed",b.dataset.m===m));
-    $("#iTxt").value=m==="wa"?WA_SAMPLE:JSON_SAMPLE;$("#iLbl").textContent=m==="wa"?"Collez l'export de la conversation":"Collez le tableau JSON au format pivot";
-    $("#iHelp").textContent=m==="wa"?"Exemple pré-rempli. Les messages sans mot technique (politesse, colis, remerciements) sont ignorés.":"Exemple pré-rempli au format pivot de la règle RG-ING-03.";
+    $("#iTxt").value="";$("#iTxt").placeholder=m==="wa"?WA_SAMPLE:JSON_SAMPLE;$("#iAi").hidden=m!=="json";
+    $("#iLbl").textContent=m==="wa"?"Collez l'export de la conversation":"Collez le tableau JSON au format pivot";
+    $("#iHelp").textContent=m==="wa"?"Plusieurs formats d'export sont acceptés, avec ou sans date, et les messages sur plusieurs lignes. Seuls les messages qui décrivent un problème technique sont retenus ; les numéros de téléphone sont masqués. Pour une analyse plus fine, passez par l'onglet JSON IA.":"Tableau au format pivot (RG-ING-03). Exemple dans la zone grisée.";
     parsed=[];$("#iPrev").innerHTML="";$("#iGo").disabled=true;$("#iErr").hidden=true;};
   $("#iMode").querySelectorAll("button").forEach(b=>b.onclick=()=>setMode(b.dataset.m));setMode("wa");
+  $("#iAiBtn").onclick=async()=>{toast(await copyText(AI_PROMPT())?"Consigne copiée. Collez-la dans votre IA.":"Copie impossible : sélectionnez le texte à la main.");};
   $("#iRun").onclick=()=>{$("#iErr").hidden=true;
+    if(!$("#iTxt").value.trim()){$("#iErr").textContent=mode==="wa"?"Collez d'abord la conversation à analyser.":"Collez d'abord le JSON à analyser.";$("#iErr").hidden=false;return;}
     try{parsed=mode==="wa"?parseWhatsApp($("#iTxt").value):parseJsonIA($("#iTxt").value);}catch(e){$("#iErr").textContent=e.message;$("#iErr").hidden=false;return;}
     const keep=parsed.filter(p=>!p.skip);
     $("#iPrev").innerHTML=parsed.map(p=>p.skip?`<li class="skip" title="${esc(p.why)}">${esc(p.raw)} <span class="ro">· ${esc(p.why)}</span></li>`:
