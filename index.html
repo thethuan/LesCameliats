@@ -172,6 +172,10 @@ h1,h2,h3{font-family:var(--f-display);text-wrap:balance;margin:0}
 .req .acts{display:flex;gap:6px;flex-wrap:wrap}
 .preview{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px;max-height:300px;overflow:auto}
 .preview li{border:1px solid var(--line);border-radius:8px;padding:7px 10px;font-size:12.5px}
+.preview li.dup{background:var(--soft,rgba(128,128,128,.08))}
+.preview .ck{display:flex;gap:8px;align-items:flex-start;cursor:pointer}
+.preview .ck input{margin-top:3px}
+.preview .dupnote{margin-top:3px}
 .preview li.skip{opacity:.55;text-decoration:line-through;text-decoration-thickness:1px}
 .preview li b{font-weight:600}
 textarea.code{font-family:var(--f-mono);font-size:12px;min-height:170px}
@@ -374,7 +378,7 @@ const CFG=window.FELLINI_CONFIG||{};
 const sb=(CFG.url&&CFG.key&&window.supabase)?window.supabase.createClient(CFG.url,CFG.key):null;
 let S={me:null,tickets:[],users:[],inviteCode:"",hidden:0};
 const rowToT=r=>({masked:r.detail===false,num:r.num,floor:r.floor,x:+r.x,y:+r.y,targetType:r.target_type,targetId:r.target_id,lotNumber:r.lot_number??undefined,room:r.room,location:r.location,title:r.title,category:r.category,urgency:r.urgency,status:r.status,date:r.date,author:r.author,description:r.description,osNumber:r.os_number,assignedContractor:r.assigned_contractor,source:r.source});
-const tToRow=t=>({floor:t.floor,x:t.x,y:t.y,target_type:t.targetType,target_id:String(t.targetId??""),lot_number:t.targetType==="LOT"?Number(t.lotNumber):null,room:t.room||"NONE",location:String(t.location||"").slice(0,120)||"Non précisé",title:String(t.title).slice(0,50),category:t.category,urgency:t.urgency,status:t.status||"reported",date:t.date,author:String(t.author||"").slice(0,80),description:String(t.description||"").slice(0,4000),os_number:t.osNumber||"",assigned_contractor:t.assignedContractor||"",source:t.source||"app"});
+const tToRow=t=>({floor:t.floor,x:t.x,y:t.y,target_type:t.targetType,target_id:String(t.targetId??""),lot_number:t.targetType==="LOT"?Number(t.lotNumber):null,room:t.room||"NONE",location:String(t.location||"").slice(0,120)||"Non précisé",title:String(t.title).slice(0,50),category:t.category,urgency:t.urgency,status:t.status||"reported",date:t.date,author:String(t.author||"").slice(0,80),description:String(t.description||"").slice(0,4000),os_number:t.osNumber||"",assigned_contractor:t.assignedContractor||"",source:t.source||"app",...(t.importKey?{import_key:t.importKey}:{})});
 const rowToU=r=>({id:r.id,name:r.name,role:r.role,lot:r.lot,cage:r.cage,floor:r.floor,residentType:r.resident_type||"",category:r.category||"",email:r.email||"",requested:String(r.requested_at||"").slice(0,10)});
 function fail(error,what){
   console.error(error);const m=String(error&&error.message||"");
@@ -874,14 +878,40 @@ function openAdmin(){
 }
 
 /* ---------- Ingestion WhatsApp & JSON IA (RG-ING) ---------- */
-const TECH=/(fuite|eau|infiltr|humid|panne|bloqu|grill|ascenseur|porte|huile|serrure|badge|bip|digicode|lumi[eè]re|n[ée]on|ampoule|[ée]lectri|minuterie|[ée]vier|wc|toilette|canalis|odeur|inond|cass[ée]|fissur|tag|d[ée]grad|poubelle|conteneur|sale|ferme-porte|interphone|chauffage|fosse|pompe)/i;
-function guessCat(s){s=s.toLowerCase();
-  if(/ascenseur/.test(s)) return "elevator";
-  if(/(fuite|eau|infiltr|humid|[ée]vier|wc|toilette|canalis|inond|fosse|pompe|chauffage)/.test(s)) return "plumbing";
-  if(/(lumi[eè]re|n[ée]on|ampoule|[ée]lectri|minuterie|grill|interphone)/.test(s)) return "electricity";
-  if(/(porte|serrure|badge|bip|digicode|ferme-porte)/.test(s)) return "door";
-  if(/(huile|sale|poubelle|conteneur|d[ée]chet|odeur)/.test(s)) return "cleanliness";
+/* ---------- Reconnaissance des incidents (texte normalisé : sans accents ni majuscules) ---------- */
+const norm=s=>String(s||"").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,"").replace(/[’']/g,"'");
+const hash53=s=>{let h1=0xdeadbeef,h2=0x41c6ce57;for(let i=0;i<s.length;i++){const c=s.charCodeAt(i);h1=Math.imul(h1^c,2654435761);h2=Math.imul(h2^c,1597334677);}
+  h1=Math.imul(h1^(h1>>>16),2246822507)^Math.imul(h2^(h2>>>13),3266489909);h2=Math.imul(h2^(h2>>>16),2246822507)^Math.imul(h1^(h1>>>13),3266489909);
+  return (4294967296*(2097151&h2)+(h1>>>0)).toString(36);};
+const importKey=(pre,...parts)=>pre+hash53(norm(parts.join("|")).replace(/[^a-z0-9|]+/g," ").replace(/ ?\| ?/g,"|").trim());
+const TECH=new RegExp("\\b(?:"+["fuites?","eaux?","infiltr\\w*","humid\\w*","moisi\\w*","pann\\w*","bloqu\\w*","grill\\w*","ascenseur\\w*","portes?","portail\\w*","huile\\w*","serrure\\w*","badge\\w*","bip\\w*","digicode\\w*","lumiere\\w*","neon\\w*","ampoule\\w*","electri\\w*","minuterie\\w*","evier\\w*","wc","toilette\\w*","canalis\\w*","odeur\\w*","inond\\w*","cass(?:e|ee|es|ees|er)","fissur\\w*","tags?","tagu\\w*","graffiti\\w*","degrad\\w*","poubelle\\w*","conteneur\\w*","sales?","salet\\w*","ferme-porte\\w*","interphone\\w*","visiophone\\w*","chauffage\\w*","radiateur\\w*","chaudiere\\w*","fosse\\w*","pompe\\w*","vmc","ventilation\\w*","robinet\\w*","debouch\\w*","bouch(?:e|ee|es|ees)","gouttiere\\w*","fenetre\\w*","vitres?","garage\\w*","boites? aux lettres","volets?","rats?","souris","cafard\\w*","punaise\\w*","nuisible\\w*","pigeon\\w*","disjoncteur\\w*","court-circuit\\w*","degats?","encombrant\\w*","dejection\\w*","extincteur\\w*","alarme\\w*","hs","ne (?:marche|fonctionne|ferme|s'ouvre)\\w* (?:pas|plus)"].join("|")+")\\b");
+const isTech=s=>TECH.test(norm(s));
+function guessCat(s){const n=norm(s);
+  if(/ascenseur/.test(n)) return "elevator";
+  if(/\b(fuites?|eaux?|infiltr|humid|moisi|evier|wc|toilette|canalis|inond|fosse|pompe|chauffage|radiateur|chaudiere|robinet|debouch|bouch|gouttiere|degats?)/.test(n)) return "plumbing";
+  if(/(lumiere|neon|ampoule|electri|minuterie|grill|interphone|visiophone|disjoncteur|court-circuit|vmc|alarme)/.test(n)) return "electricity";
+  if(/(\bportes?\b|portail|serrure|badge|\bbip|digicode|ferme-porte|garage|boites? aux lettres)/.test(n)) return "door";
+  if(/(huile|\bsales?\b|salet|poubelle|conteneur|dechet|odeur|encombrant|dejection|cafard|punaise|\brats?\b|souris|nuisible|pigeon|graffiti|\btags?\b)/.test(n)) return "cleanliness";
   return "damage";}
+function guessStatus(s){const n=norm(s);
+  if(/ne (?:marche|fonctionne|ferme|s'ouvre)\w* (?:pas|plus)|pas (?:encore )?(?:repar|regl|resolu|nettoy)|n'est (?:toujours )?pas (?:repar|regl|resolu)|\btoujours\b|\bencore\b/.test(n)) return "reported";
+  if(/(technicien|plombier|electricien|ascensoriste|syndic|artisan|entreprise|intervention|ordre de service)\b.{0,50}(prevu|programme|doit passer|doit venir|vient|viendra|passe demain|demain|contacte|appele|prevenu|commande)|(a ete|ete|est) (?:contacte|appele|prevenu|signale)/.test(n)) return "in_progress";
+  if(/\b(repar\w*|regle\w*|resolu\w*|remis(?:e)? en (?:etat|marche|service)|refait\w*|nettoye\w*|debouche\w*|remplace\w*|re ?fonctionne\w*|remarche\w*|plus de probleme|c'est bon)\b/.test(n)) return "resolved";
+  return "reported";}
+const guessUrgency=s=>{const n=norm(s);
+  if(/(bloqu|inond|urgent|coule|danger|fumee|\bgaz\b|incendie|court-circuit|electrocut|coince|degats? des eaux)/.test(n)) return "high";
+  if(/(esthetique|leger|legere|mineur|petit(?:e)? souci)/.test(n)) return "low";
+  return "medium";};
+const CHATTER=/^(merci|ok\b|d'accord|super|bravo|bonne|bonjour|bonsoir|oui\b|non\b|top\b|parfait|ca marche|bien recu|entendu)/;
+const words=s=>new Set(norm(s).replace(/[^a-z0-9 ]+/g," ").split(/\s+/).filter(w=>w.length>3));
+const jaccard=(a,b)=>{const A=words(a),B=words(b);if(!A.size||!B.size)return 0;let i=0;A.forEach(w=>{if(B.has(w))i++;});return i/(A.size+B.size-i);};
+/* Deux incidents « se ressemblent » : même endroit, même catégorie (et, pour les parties communes, même lieu ou titre proche). */
+function sameSpot(a,b){
+  if(a.targetType!==b.targetType||a.category!==b.category) return false;
+  if(a.targetType!=="COMMON") return a.floor===b.floor&&String(a.targetId)===String(b.targetId);
+  const pl=t=>norm(t.location).split(" · ")[0];                       // « ascenseur c », « hall a »…
+  if(/^(ascenseur|hall|cage|palier) [abc]$/.test(pl(a))&&pl(a)===pl(b)) return true;   // un ascenseur ou un hall précis : l'étage importe peu
+  return a.floor===b.floor&&(norm(a.location)===norm(b.location)||jaccard(a.title,b.title)>=0.5);}
 function resolveSpatial(s){
   const l=s.toLowerCase();let floor=null,tt="COMMON",tid="",pos=null,room="NONE",lot;
   let mp=l.match(/(?:place|parking)\s*(?:n[°o]?\s*)?(\d{1,3})/);if(mp&&+mp[1]>=1&&+mp[1]<=53)mp=[0,String(+mp[1]+67)];
@@ -948,15 +978,22 @@ function parseWhatsApp(txt){
     if(!body) return;
     const shown=(g.author&&g.author!=="Résident"?g.author+" : ":"")+body,prev=shown.length>180?shown.slice(0,177)+"…":shown;
     if(SYSMSG.test(body)&&body.length<140){out.push({skip:true,raw:prev,why:"Message système"});return;}
-    if(!TECH.test(body)){out.push({skip:true,raw:prev,why:"Discussion générale, sans incident technique"});return;}
+    if(CHATTER.test(norm(body))&&body.length<45){out.push({skip:true,raw:prev,why:"Politesse"});return;}
+    if(!isTech(body)){out.push({skip:true,raw:prev,why:"Discussion générale, sans incident technique"});return;}
     const sents=body.match(/[^.!?…]+[.!?…]*/g)||[body];
-    const best=(sents.find(x=>TECH.test(x))||body).trim(),title=(best.charAt(0).toUpperCase()+best.slice(1));
+    const best=(sents.find(isTech)||body).trim(),title=(best.charAt(0).toUpperCase()+best.slice(1));
     const sp=resolveSpatial(body);
-    out.push({skip:false,raw:prev,t:{date:g.date,author:g.author,...sp,location:locLabel(sp,body),
+    out.push({skip:false,raw:prev,key:importKey("w1-",g.date,g.author,body),t:{date:g.date,author:g.author,...sp,location:locLabel(sp,body),
       title:title.length>50?title.slice(0,47).trim()+"…":title,category:guessCat(body),
-      urgency:/(bloqu|inond|urgent|coule|danger|fum[ée]e|gaz|incendie|court-circuit|[ée]lectrocut)/i.test(body)?"high":"medium",
-      status:"reported",description:(sents.filter(x=>TECH.test(x)).join(" ").trim()||body).slice(0,4000),source:"whatsapp"}});
-  });return out;}
+      urgency:guessUrgency(body),
+      status:guessStatus(body),description:(sents.filter(isTech).join(" ").trim()||body).slice(0,4000),source:"whatsapp",importKey:importKey("w1-",g.date,g.author,body)}});
+  });
+  /* Un message de suivi (« réparé », « le technicien passe demain ») met à jour l'incident précédent au même endroit. */
+  const RANK={reported:0,in_progress:1,resolved:2};
+  out.forEach((it,i)=>{if(it.skip||it.t.status==="reported")return;
+    for(let j=i-1;j>=0;j--){const e=out[j];if(e.skip||RANK[e.t.status]>=RANK[it.t.status])continue;
+      if(sameSpot(e.t,it.t)){e.t.status=it.t.status;e.t.description=(e.t.description+" · Suivi : "+it.t.description).slice(0,4000);it.skip=true;it.why="Suivi de l'incident précédent (statut mis à jour)";break;}}});
+  return out;}
 const AI_PROMPT=()=>`Tu aides le conseil syndical d'une copropriété. Ci-dessous, une conversation de groupe. Extrais UNIQUEMENT les incidents techniques (fuite, panne, porte, ascenseur, électricité, propreté, dégradation) et réponds par un tableau JSON, sans aucun texte autour.
 
 Règles :
@@ -997,7 +1034,7 @@ function parseJsonIA(txt){
     if(sp.targetType==="COMMON"||sp.floor!==o.floor&&o.target_type!=="PARKING"&&o.target_type!=="CAVE"){const p=floorDefault(o.floor);sp=Object.assign(sp,{floor:o.floor,x:p.x+(Math.random()-.5)*3,y:p.y+(Math.random()-.5)*3});}
     const resolved=sp.targetType===o.target_type;sp.targetType=o.target_type;if(!resolved)sp.targetId=String(o.target_id||"");if(o.target_type==="LOT")sp.lotNumber=Number(sp.targetId);
     return {skip:false,raw:o.title,t:{date:o.date||today(),author:o.author||"Import IA",...sp,room:o.room_type||"NONE",location:o.target_type==="COMMON"?(String(o.target_id||"Partie commune")+" · "+floorOf(o.floor).label):locLabel(sp,""),
-      title:String(o.title).slice(0,50),category:o.category,urgency:o.urgency,status:SM[o.status],description:o.description||"",source:"json"}};
+      title:String(o.title).slice(0,50),category:o.category,urgency:o.urgency,status:SM[o.status],description:o.description||"",source:"json",importKey:importKey("j1-",o.date||"",o.title,o.target_type,o.target_id)},key:importKey("j1-",o.date||"",o.title,o.target_type,o.target_id)};
   });}
 function openImport(){
   let mode="wa",parsed=[];
@@ -1016,16 +1053,39 @@ function openImport(){
     parsed=[];$("#iPrev").innerHTML="";$("#iGo").disabled=true;$("#iErr").hidden=true;};
   $("#iMode").querySelectorAll("button").forEach(b=>b.onclick=()=>setMode(b.dataset.m));setMode("wa");
   $("#iAiBtn").onclick=async()=>{toast(await copyText(AI_PROMPT())?"Consigne copiée. Collez-la dans votre IA.":"Copie impossible : sélectionnez le texte à la main.");};
-  $("#iRun").onclick=()=>{$("#iErr").hidden=true;
+  let flags=[];
+  const sync=()=>{const n=parsed.filter((p,i)=>!p.skip&&$("#iPrev").querySelector(`input[data-i="${i}"]`)?.checked).length;
+    $("#iGo").disabled=!n;$("#iGo").textContent=n?`Importer ${n} signalement${n>1?"s":""}`:"Rien à importer";};
+  $("#iRun").onclick=async()=>{$("#iErr").hidden=true;
     if(!$("#iTxt").value.trim()){$("#iErr").textContent=mode==="wa"?"Collez d'abord la conversation à analyser.":"Collez d'abord le JSON à analyser.";$("#iErr").hidden=false;return;}
     try{parsed=mode==="wa"?parseWhatsApp($("#iTxt").value):parseJsonIA($("#iTxt").value);}catch(e){$("#iErr").textContent=e.message;$("#iErr").hidden=false;return;}
-    const keep=parsed.filter(p=>!p.skip);
-    $("#iPrev").innerHTML=parsed.map(p=>p.skip?`<li class="skip" title="${esc(p.why)}">${esc(p.raw)} <span class="ro">· ${esc(p.why)}</span></li>`:
-      `<li><b>${esc(p.t.title)}</b><div class="meta"><span>${floorOf(p.t.floor).label}</span><span>${esc(p.t.location)}</span><span>${CATS[p.t.category]}</span><span class="pill ${p.t.status}">${STAT[p.t.status]}</span></div></li>`).join("");
-    $("#iGo").disabled=!keep.length;$("#iGo").textContent=keep.length?`Importer ${keep.length} signalement${keep.length>1?"s":""}`:"Rien à importer";};
-  $("#iGo").onclick=async()=>{const keep=parsed.filter(p=>!p.skip);$("#iGo").disabled=true;
+    /* Doublons : 1) déjà importé (empreinte connue, corbeille comprise) 2) répété dans ce texte 3) incident déjà ouvert au même endroit */
+    const known=new Map();
+    const {data:kn,error:ke}=await sb.rpc("known_imports");
+    if(ke){$("#iErr").textContent="Vérification des doublons impossible : "+(ke.message||"erreur")+". Rien n'a été importé.";$("#iErr").hidden=false;return;}
+    (kn||[]).forEach(k=>known.set(k.import_key,k));
+    const seen=new Map(),open=S.tickets.filter(t=>!t.masked&&t.status!=="resolved");
+    flags=parsed.map((p,i)=>{if(p.skip)return null;
+      const k=known.get(p.key);if(k)return {kind:"known",txt:k.deleted?`Déjà importé, puis supprimé (corbeille, T-${String(k.num).padStart(4,"0")})`:`Déjà importé (T-${String(k.num).padStart(4,"0")})`,off:true};
+      if(seen.has(p.key))return {kind:"repeat",txt:"Message répété dans ce texte",off:true};seen.set(p.key,i);
+      const near=open.find(t=>sameSpot(t,p.t));
+      if(near)return {kind:"near",txt:`Ressemble à T-${String(near.num).padStart(4,"0")} déjà ouvert : à vérifier`,off:true};
+      return {kind:"ok"};});
+    /* même endroit, même catégorie, déjà vu plus haut dans ce texte */
+    flags.forEach((f,i)=>{if(!f||f.kind!=="ok")return;const prev=parsed.findIndex((q,j)=>j<i&&!q.skip&&flags[j]&&flags[j].kind==="ok"&&sameSpot(q.t,parsed[i].t));
+      if(prev>=0)flags[i]={kind:"near",txt:"Ressemble à un autre incident de ce texte : à vérifier",off:true};});
+    const nd=flags.filter(f=>f&&f.kind!=="ok").length;
+    $("#iPrev").innerHTML=parsed.map((p,i)=>{if(p.skip)return `<li class="skip" title="${esc(p.why)}">${esc(p.raw)} <span class="ro">· ${esc(p.why)}</span></li>`;
+      const f=flags[i],dis=f.kind==="known"||f.kind==="repeat";
+      return `<li${f.kind!=="ok"?' class="dup"':""}><label class="ck"><input type="checkbox" data-i="${i}"${f.kind==="ok"?" checked":""}${dis?" disabled":""}><b>${esc(p.t.title)}</b></label><div class="meta"><span>${floorOf(p.t.floor).label}</span><span>${esc(p.t.location)}</span><span>${CATS[p.t.category]}</span><span class="pill ${p.t.status}">${STAT[p.t.status]}</span></div>${f.kind!=="ok"?`<div class="ro dupnote">${esc(f.txt)}</div>`:""}</li>`;}).join("");
+    $("#iPrev").querySelectorAll("input").forEach(c=>c.onchange=sync);
+    $("#iErr").textContent=nd?`${nd} message${nd>1?"s":""} déjà connu${nd>1?"s":""} ou ressemblant : décochés par défaut.`:"";$("#iErr").hidden=!nd;
+    sync();};
+  $("#iGo").onclick=async()=>{const keep=parsed.filter((p,i)=>!p.skip&&$("#iPrev").querySelector(`input[data-i="${i}"]`)?.checked);$("#iGo").disabled=true;
     const {error}=await sb.from("tickets").insert(keep.map(p=>tToRow(p.t)));
-    if(error){$("#iGo").disabled=false;fail(error,"Import refusé");return;}
+    if(error){$("#iGo").disabled=false;
+      if(error.code==="23505"){$("#iErr").textContent="Certains de ces messages ont déjà été importés entre-temps. Cliquez sur Analyser pour actualiser la liste.";$("#iErr").hidden=false;return;}
+      fail(error,"Import refusé");return;}
     await refresh();closeSheet();UI.scope="all";UI.status="all";renderAll();toast(`${keep.length} signalement${keep.length>1?"s":""} importé${keep.length>1?"s":""}.`);};
 }
 
