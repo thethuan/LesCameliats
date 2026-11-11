@@ -39,19 +39,27 @@ espace de stockage privé de Supabase et ne sont servis qu'aux utilisateurs conn
 
 | Profil | Voit | Peut |
 |---|---|---|
-| Conseil syndical | tout | tout, y compris valider les comptes et supprimer |
-| Syndic | tout | déclarer, importer, exporter, statut, ordre de service |
-| Résident | communs, parkings, caves, son logement | déclarer (en privatif : son logement seulement) |
-| Prestataire | les signalements de sa spécialité | changer le statut |
-| En attente | communs, parkings, caves | rien |
+| Conseil syndical | tout, y compris l'auteur de chaque signalement | tout, y compris valider les comptes et supprimer |
+| Syndic | tout, y compris l'auteur | déclarer, importer, exporter, statut, ordre de service |
+| Résident | tous les signalements, sans l'auteur (sauf les siens). Pour le logement d'un autre : catégorie, gravité, statut, date et étage seulement | déclarer (en privatif : son logement seulement) |
+| Prestataire | les signalements de sa spécialité, sans l'auteur | changer le statut |
+| En attente | rien (écran flouté) | rien |
 
 Ces règles sont dans `schema.sql` (row level security). L'interface les reflète, mais c'est
 la base qui les impose : un navigateur ne reçoit jamais un signalement masqué.
+
+## Mise à jour des règles de visibilité (11/11/2026)
+
+Sur une base déjà installée, ne pas relancer `schema.sql` : coller le contenu de
+`supabase/patches/2026-11-11_visibilite.sql` dans *SQL Editor*, puis *Run* (une seule fois, sans danger si répété).
+Le site lit désormais les signalements par la vue `tickets_feed`, qui masque l'auteur et le détail des logements des autres.
 
 ## Tester les règles en local
 
 ```sh
 psql -f supabase/tests/00_faux_supabase_local.sql      # crée la base ftest et un faux schéma auth
 psql -d ftest -v ON_ERROR_STOP=1 -f supabase/schema.sql
-psql -d ftest -f supabase/tests/01_regles_acces.sql    # les ERROR affichées sont les refus attendus
+psql -d ftest -f supabase/tests/01_regles_acces.sql    # règles d'origine (lecture des signalements : voir 02)
+# (pour 02 : relancer d'abord les deux premières commandes, sur une base neuve)
+psql -d ftest -f supabase/tests/02_visibilite.sql      # visibilité du 11/11/2026 ; les ERROR affichées sont les refus attendus
 ```

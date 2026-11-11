@@ -95,17 +95,14 @@ create policy settings_select on public.settings for select to authenticated
 create policy settings_update on public.settings for update to authenticated
   using (public.my_role() = 'cs_admin') with check (public.my_role() = 'cs_admin');
 
--- Signalements, lecture (RG-SEC-03) :
---   CS et syndic : tout ; prestataire : sa catégorie ;
---   résident : parties communes, parkings, caves et SON logement ;
---   en attente : tout sauf les logements.
+-- Signalements, lecture (RG-SEC-03), table : CS et syndic (tout) ; prestataire (sa catégorie).
+-- Résidents et comptes en attente passent par la vue tickets_feed (plus bas), qui masque
+-- l'auteur et le détail des logements des autres.
 create policy tickets_select on public.tickets for select to authenticated using (
   case public.my_role()
     when 'cs_admin'   then true
     when 'syndic'     then true
     when 'contractor' then category = public.my_category()
-    when 'resident'   then target_type <> 'LOT' or lot_number = public.my_lot()
-    when 'pending'    then target_type <> 'LOT'
     else false
   end);
 
@@ -234,7 +231,53 @@ revoke all on public.profiles, public.settings, public.code_attempts, public.tic
 revoke all on public.code_attempts from authenticated;
 grant select, update, delete on public.profiles to authenticated;
 grant select, update on public.settings to authenticated;
-grant select, insert, update, delete on public.tickets to authenticated;
+revoke select on public.tickets from authenticated;
+grant insert, update, delete on public.tickets to authenticated;
+-- Le nom de l'auteur ne se lit pas directement dans la table (voir la vue tickets_feed).
+grant select (num, floor, x, y, target_type, target_id, lot_number, room, location,
+              title, category, urgency, status, date, description, os_number,
+              assigned_contractor, source, created_at, updated_at)
+  on public.tickets to authenticated;
+
+-- 3. Vue de lecture : applique le masquage selon le profil de l'utilisateur.
+drop view if exists public.tickets_feed;
+create view public.tickets_feed as
+select s.num, s.floor,
+  case when s.detail then s.x end                                     as x,
+  case when s.detail then s.y end                                     as y,
+  s.target_type,
+  case when s.detail then s.target_id else '' end                     as target_id,
+  case when s.detail then s.lot_number end                            as lot_number,
+  case when s.detail then s.room else 'NONE' end                      as room,
+  case when s.detail then s.location else 'Logement privé' end        as location,
+  case when s.detail then s.title else 'Incident dans un logement privé' end as title,
+  s.category, s.urgency, s.status, s.date,
+  case when s.show_author then s.author else '' end                   as author,
+  case when s.detail then s.description else '' end                   as description,
+  case when s.detail then s.os_number else '' end                     as os_number,
+  case when s.detail then s.assigned_contractor else '' end           as assigned_contractor,
+  case when s.detail then s.source else 'app' end                     as source,
+  s.created_at, s.updated_at,
+  s.detail                                                            as detail
+from (
+  select t.*,
+    (public.my_role() in ('cs_admin','syndic','contractor')
+       or t.target_type <> 'LOT'
+       or t.lot_number = public.my_lot())                             as detail,
+    (public.my_role() in ('cs_admin','syndic')
+       or t.author_id = auth.uid())                                   as show_author
+  from public.tickets t
+  where case public.my_role()
+          when 'cs_admin'   then true
+          when 'syndic'     then true
+          when 'contractor' then t.category = public.my_category()
+          when 'resident'   then true
+          else false
+        end
+) s;
+revoke all on public.tickets_feed from public, anon;
+grant select on public.tickets_feed to authenticated;
+
 revoke execute on function public.request_access(text,text,text,int,int,text) from public, anon;
 revoke execute on function public.hidden_private_count() from public, anon;
 grant execute on function public.request_access(text,text,text,int,int,text) to authenticated;
@@ -245,7 +288,7 @@ grant execute on function public.my_role(), public.my_lot(), public.my_category(
 insert into storage.buckets (id, name, public) values ('plans', 'plans', false)
 on conflict (id) do nothing;
 create policy plans_read on storage.objects for select to authenticated
-  using (bucket_id = 'plans' and public.my_role() is not null);
+  using (bucket_id = 'plans' and public.my_role() is not null and public.my_role() <> 'pending');
 create policy plans_insert on storage.objects for insert to authenticated
   with check (bucket_id = 'plans' and public.my_role() = 'cs_admin');
 create policy plans_update on storage.objects for update to authenticated

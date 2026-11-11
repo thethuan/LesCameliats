@@ -1,3 +1,4 @@
+-- NB : les règles de lecture des signalements ont changé le 11/11/2026 (vue tickets_feed) : voir 02_visibilite.sql.
 \set ON_ERROR_STOP 0
 insert into auth.users values
  ('00000000-0000-0000-0000-000000000001','cs@x.fr'),('00000000-0000-0000-0000-000000000002','res22@x.fr'),
