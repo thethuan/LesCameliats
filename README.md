@@ -73,3 +73,13 @@ psql -d ftest -f supabase/tests/01_regles_acces.sql    # règles d'origine (lect
 psql -d ftest -f supabase/tests/02_visibilite.sql      # visibilité du 11/11/2026 ; les ERROR affichées sont les refus attendus
 psql -d ftest -f supabase/tests/03_corbeille_journal.sql  # corbeille, restauration, journal
 ```
+
+## Import sans doublons (12/11/2026)
+
+Patch : `supabase/patches/2026-11-12_import_doublons.sql` (à lancer une fois dans le SQL Editor, déjà inclus dans `schema.sql`).
+
+* Chaque message importé reçoit une empreinte (`import_key`, unique). Réimporter le même texte n'ajoute rien :
+  les messages déjà importés sont repérés, y compris ceux partis à la corbeille.
+* Les incidents qui ressemblent à un incident déjà ouvert (même endroit, même catégorie) sont décochés par défaut.
+* Un message de suivi (« réparé », « le technicien passe demain ») met à jour l'incident précédent au lieu d'en créer un nouveau.
+* L'empreinte n'est lisible que par le Conseil syndical et le syndic (fonction `known_imports`). Test : `supabase/tests/04_import_doublons.sql`.
