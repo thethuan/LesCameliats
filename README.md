@@ -83,3 +83,9 @@ Patch : `supabase/patches/2026-11-12_import_doublons.sql` (à lancer une fois da
 * Les incidents qui ressemblent à un incident déjà ouvert (même endroit, même catégorie) sont décochés par défaut.
 * Un message de suivi (« réparé », « le technicien passe demain ») met à jour l'incident précédent au lieu d'en créer un nouveau.
 * L'empreinte n'est lisible que par le Conseil syndical et le syndic (fonction `known_imports`). Test : `supabase/tests/04_import_doublons.sql`.
+
+## Déplacer un incident (13/11/2026)
+
+Dans la fiche d'un incident, le Conseil syndical et le syndic ont un bouton **Déplacer** : choisir l'étage, cliquer sur le plan,
+vérifier le logement / parking / cave détecté, puis valider. Le lieu est mis à jour et le changement figure dans l'Historique (« Modifié »).
+Aucun patch SQL : les droits de modification existaient déjà.

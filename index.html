@@ -172,6 +172,8 @@ h1,h2,h3{font-family:var(--f-display);text-wrap:balance;margin:0}
 .req .acts{display:flex;gap:6px;flex-wrap:wrap}
 .preview{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px;max-height:300px;overflow:auto}
 .preview li{border:1px solid var(--line);border-radius:8px;padding:7px 10px;font-size:12.5px}
+#moveBar{position:fixed;top:10px;left:50%;transform:translateX(-50%);z-index:60;background:var(--accent);color:var(--accent-ink);padding:8px 12px;border-radius:10px;display:flex;gap:10px;align-items:center;font-size:13px;max-width:calc(100vw - 24px);box-shadow:0 4px 16px rgba(0,0,0,.25)}
+body.moving #planWrap{cursor:crosshair}
 .preview li.dup{background:var(--soft,rgba(128,128,128,.08))}
 .preview .ck{display:flex;gap:8px;align-items:flex-start;cursor:pointer}
 .preview .ck input{margin-top:3px}
@@ -579,6 +581,9 @@ const head=(t,p)=>`<div class="sheet-head"><div><h2>${t}</h2>${p?`<p>${p}</p>`:"
 
 /* ---------- Création sur plan (RG-GEO-01) ---------- */
 $("#planWrap").addEventListener("click",e=>{
+  if(UI.moving){const r=$("#planWrap").getBoundingClientRect();
+    const x=+((e.clientX-r.left)/r.width*100).toFixed(2),y=+((e.clientY-r.top)/r.height*100).toFixed(2);
+    openMove(x,y);return;}
   if(e.target.closest(".pin[data-n]")) return;
   const u=me();if(!can.declare(u)){toast("Votre profil est en lecture seule.");return;}
   const r=$("#planWrap").getBoundingClientRect();
@@ -636,6 +641,53 @@ function openCreate(zone,x,y){
   };
 }
 
+/* ---------- Déplacer un incident (CS et syndic) ---------- */
+function startMove(n){
+  UI.moving=n;closeSheet();document.body.classList.add("moving");
+  let b=$("#moveBar");if(!b){b=document.createElement("div");b.id="moveBar";document.body.appendChild(b);}
+  b.innerHTML=`<span>Déplacer #${n} : choisissez l'étage, puis cliquez sur le bon endroit du plan.</span> <button class="btn" id="moveNo" type="button">Annuler</button>`;
+  $("#moveNo").onclick=endMove;
+}
+function endMove(){UI.moving=null;UI.temp=null;document.body.classList.remove("moving");const b=$("#moveBar");b&&b.remove();renderPins();}
+document.addEventListener("keydown",e=>{if(e.key==="Escape"&&UI.moving&&!$("#scrim"))endMove();});
+function openMove(x,y){
+  const n=UI.moving,t=S.tickets.find(q=>q.num===n),u=me();if(!t||!can.os(u)){endMove();return;}
+  const zone=classify(UI.floor,Math.round(x*13.76),Math.round(y*7.68))||PALETTE[4],f=floorOf(UI.floor),cage=cageFromX(x,UI.floor);
+  let tt="COMMON",num="",found="";
+  if(UI.floor<0&&zone.k==="dry"){tt="PARKING";const sp=nearestSpot(UI.floor,x,y);if(sp){tt=sp.t;num=sp.n;found=desigShort(sp.t,sp.n);}}
+  else if(UI.floor>=0&&(zone.k==="dry"||zone.k==="water")){tt="LOT";const l=nearestLot(UI.floor,x,y);if(l){num=l;found=desigLong("LOT",l);}}
+  const mkLoc=(k,nm)=>k==="LOT"&&nm?`${desigLong("LOT",nm)} · ${zone.k==="water"?"pièce d'eau":"pièce sèche"} · ${f.label}`:(k!=="COMMON"&&nm?`${desigShort(k,nm)} · ${f.label}`:`${zone.label} · secteur cage ${cage} · ${f.label}`);
+  UI.temp={floor:UI.floor,x,y};renderPins();
+  openSheet(head(`Déplacer #${n}`,`${esc(t.title)}`)+`
+   <div class="detect">Nouvel emplacement : <b>${f.label}</b>, point (${x.toFixed(1)} %, ${y.toFixed(1)} %).${found?` Zone détectée : <b>${found}</b>.`:""}</div>
+   <form id="fMove" style="display:contents" novalidate>
+    <div class="field"><span class="flabel">Concerne</span><div class="seg" id="mTT" role="group" aria-label="Type de cible">${Object.keys(TT).map(k=>`<button type="button" data-t="${k}" aria-pressed="${k===tt}">${TT[k]}</button>`).join("")}</div></div>
+    <div class="field" id="mNumF"><label for="mNum" id="mNumL">Désignation</label><select id="mNum"></select></div>
+    <div class="field"><label for="mLoc">Localisation</label><input id="mLoc" maxlength="80" value="${esc(mkLoc(tt,num))}"></div>
+    <p class="ro">Un incident placé dans un logement n'est visible que par ce logement, le Conseil syndical et le syndic.</p>
+    <p class="err" id="mErr" hidden></p>
+    <div class="foot"><button type="button" class="btn" data-close>Choisir un autre point</button><button class="btn primary" type="submit">Déplacer ici</button></div>
+   </form>`);
+  let cur=tt,locTouched=false;
+  $("#mLoc").oninput=()=>{locTouched=true;};
+  const sync=()=>{$("#mTT").querySelectorAll("button").forEach(b=>b.setAttribute("aria-pressed",b.dataset.t===cur));
+    $("#mNumF").hidden=cur==="COMMON";$("#mNumL").textContent=cur==="LOT"?"Logement":cur==="PARKING"?"Parking":"Cave";
+    if(cur!=="COMMON"){const prev=Number($("#mNum").value)||num;$("#mNum").innerHTML=`<option value="">Choisir…</option>`+desigOptions(cur).map(([k,l])=>`<option value="${k}" ${k===+prev?"selected":""}>${l}</option>`).join("");}
+    if(!locTouched)$("#mLoc").value=mkLoc(cur,Number($("#mNum").value)||(cur===tt?num:""));};
+  $("#mTT").querySelectorAll("button").forEach(b=>b.onclick=()=>{cur=b.dataset.t;sync();});
+  $("#mNum").onchange=()=>{if(!locTouched)$("#mLoc").value=mkLoc(cur,Number($("#mNum").value));};
+  sync();
+  $("#fMove").onsubmit=async e=>{e.preventDefault();
+    const k=Number($("#mNum").value),err=m=>{$("#mErr").textContent=m;$("#mErr").hidden=false;};
+    const rng={LOT:[1,39],CAVE:[40,67],PARKING:[68,120]}[cur];
+    if(rng&&!(Number.isInteger(k)&&k>=rng[0]&&k<=rng[1])) return err(`Choisissez ${cur==="LOT"?"le logement":cur==="PARKING"?"le parking":"la cave"} concerné.`);
+    const patch={floor:UI.floor,x,y,target_type:cur,target_id:cur==="COMMON"?"zone-"+cage:String(k),lot_number:cur==="LOT"?k:null,room:cur==="LOT"&&zone.k==="water"?"CUISINE":"NONE",location:($("#mLoc").value.trim()||mkLoc(cur,k)).slice(0,120)};
+    const btn=e.target.querySelector("[type=submit]");btn.disabled=true;
+    const {error}=await sb.from("tickets").update(patch).eq("num",n);
+    if(error){btn.disabled=false;fail(error,"Déplacement impossible");return;}
+    await refresh();endMove();closeSheet();UI.floor=patch.floor;UI.sel=n;renderAll();toast(`#${n} déplacé.`);};
+}
+
 /* ---------- Détail d'un ticket (RG-TIC) ---------- */
 function openTicket(n){
   const t=S.tickets.find(x=>x.num===n),u=me();if(!t||!visible(u,t)) return;
@@ -662,13 +714,14 @@ function openTicket(n){
    </dl>
    <div class="box"><h3>Statut</h3>${st}</div>
    <div class="box"><h3>Ordre de service</h3>${os}</div>
-   <div class="foot" id="dFoot">${can.del(u)?`<button class="btn danger" id="dDel">Supprimer</button>`:""}<button class="btn" data-close>Fermer</button></div>`);
+   <div class="foot" id="dFoot">${can.del(u)?`<button class="btn danger" id="dDel">Supprimer</button>`:""}${can.os(u)?`<button class="btn" id="dMove">Déplacer</button>`:""}<button class="btn" data-close>Fermer</button></div>`);
   $("#dSt")&&$("#dSt").querySelectorAll("button").forEach(b=>b.onclick=async()=>{
     const {error}=await sb.from("tickets").update({status:b.dataset.s}).eq("num",n);if(error){fail(error,"Statut non modifié");return;}
     await refresh();renderAll();openTicket(n);toast(`Statut : ${STAT[b.dataset.s]}.`);});
   $("#dSaveOs")&&($("#dSaveOs").onclick=async()=>{
     const {error}=await sb.from("tickets").update({os_number:$("#dOs").value.trim().slice(0,40),assigned_contractor:$("#dCo").value.trim().slice(0,80)}).eq("num",n);if(error){fail(error,"Ordre de service non enregistré");return;}
     await refresh();renderList();toast("Ordre de service enregistré.");});
+  $("#dMove")&&($("#dMove").onclick=()=>startMove(n));
   $("#dDel")&&($("#dDel").onclick=()=>{$("#dFoot").innerHTML=`<span class="err" style="margin-right:auto">Mettre #${t.num} à la corbeille ?</span><button class="btn" id="dNo">Non</button><button class="btn danger" id="dYes">Oui, supprimer</button>`;
     $("#dNo").onclick=()=>openTicket(n);$("#dYes").onclick=async()=>{
       const {error}=await sb.from("tickets").update({deleted_at:new Date().toISOString()}).eq("num",n);if(error){fail(error,"Suppression impossible");return;}
