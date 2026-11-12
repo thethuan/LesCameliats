@@ -383,7 +383,7 @@ const sb=(CFG.url&&CFG.key&&window.supabase)?window.supabase.createClient(CFG.ur
 let S={me:null,tickets:[],users:[],inviteCode:"",hidden:0};
 const rowToT=r=>({masked:r.detail===false,num:r.num,floor:r.floor,x:+r.x,y:+r.y,targetType:r.target_type,targetId:r.target_id,lotNumber:r.lot_number??undefined,room:r.room,location:r.location,title:r.title,category:r.category,urgency:r.urgency,status:r.status,date:r.date,author:r.author,description:r.description,osNumber:r.os_number,assignedContractor:r.assigned_contractor,source:r.source});
 const tToRow=t=>({floor:t.floor,x:t.x,y:t.y,target_type:t.targetType,target_id:String(t.targetId??""),lot_number:t.targetType==="LOT"?Number(t.lotNumber):null,room:t.room||"NONE",location:String(t.location||"").slice(0,120)||"Non précisé",title:String(t.title).slice(0,50),category:t.category,urgency:t.urgency,status:t.status||"reported",date:t.date,author:String(t.author||"").slice(0,80),description:String(t.description||"").slice(0,4000),os_number:t.osNumber||"",assigned_contractor:t.assignedContractor||"",source:t.source||"app",...(t.importKey?{import_key:t.importKey}:{})});
-const rowToU=r=>({id:r.id,name:r.name,role:r.role,lot:r.lot,cage:r.cage,floor:r.floor,residentType:r.resident_type||"",category:r.category||"",email:r.email||"",requested:String(r.requested_at||"").slice(0,10)});
+const rowToU=r=>({id:r.id,name:r.name,role:r.role,lot:r.lot,cage:r.cage,floor:r.floor,residentType:r.resident_type||"",category:r.category||"",email:r.email||"",isAdmin:r.is_admin===true,requested:String(r.requested_at||"").slice(0,10)});
 function fail(error,what){
   console.error(error);const m=String(error&&error.message||"");
   toast((what||"Action impossible")+" : "+(/row-level security|permission denied/i.test(m)?"vos droits ne le permettent pas.":/fetch|network/i.test(m)?"vérifiez votre connexion Internet.":m||"réessayez."));
@@ -412,7 +412,9 @@ const can={
  os:u=>u.role==="cs_admin"||u.role==="syndic",
  del:u=>u.role==="cs_admin",
  admin:u=>u.role==="cs_admin",
- ingest:u=>u.role==="cs_admin"||u.role==="syndic",
+ ingest:u=>u.isAdmin===true,
+ trash:u=>u.isAdmin===true,
+ plans:u=>u.isAdmin===true,
  export:u=>u.role==="cs_admin"||u.role==="syndic"};
 function visible(u,t){
   if(u.role==="cs_admin"||u.role==="syndic") return true;
@@ -465,7 +467,7 @@ async function drawPlan(){
   if(me()&&me().role==="pending"){ctx.clearRect(0,0,2752,1536);return;}   // aucun plan pour un compte en attente
   const tk=++drawToken,f=floorOf(UI.floor),im=await loadImg(f);if(tk!==drawToken) return;
   ctx.clearRect(0,0,2752,1536);
-  if(!im){delete imgs[f.id];ctx.fillStyle="#777";ctx.font="44px sans-serif";ctx.fillText("Plan non chargé pour ce niveau.",80,130);ctx.font="34px sans-serif";ctx.fillText("Le Conseil syndical peut l'ajouter depuis Administration, rubrique Plans.",80,190);return;}
+  if(!im){delete imgs[f.id];ctx.fillStyle="#777";ctx.font="44px sans-serif";ctx.fillText("Plan non chargé pour ce niveau.",80,130);ctx.font="34px sans-serif";ctx.fillText("L'administrateur peut l'ajouter depuis Administration, rubrique Plans.",80,190);return;}
   getOrig(f.id,im);
   if(UI.water==="normal"||!orig[f.id]) ctx.drawImage(im,0,0,2752,1536);
   else ctx.putImageData(variant(f.id,UI.water,im),0,0);
@@ -496,7 +498,7 @@ function cageFromX(x,fl){return fl===6?(x<35?"A":x<65?"B":"C"):(x<38?"C":x<66?"B
 /* ---------- Rendu ---------- */
 function renderHeader(){
   const u=me();
-  $("#whoName").innerHTML=`<div class="who-name"><b>${esc(u.name)}</b><small>${ROLES[u.role]}${(u.role==="resident"||u.role==="pending")&&u.lot?" · "+desigShort("LOT",u.lot):""}${u.category?" · "+CATS[u.category]:""}</small></div>`;
+  $("#whoName").innerHTML=`<div class="who-name"><b>${esc(u.name)}</b><small>${ROLES[u.role]}${u.isAdmin?" · Administrateur":""}${(u.role==="resident"||u.role==="pending")&&u.lot?" · "+desigShort("LOT",u.lot):""}${u.category?" · "+CATS[u.category]:""}</small></div>`;
   const pend=S.users.filter(x=>x.role==="pending").length;
   let h="";
   if(can.declare(u)) h+=`<button class="btn primary" id="aNew">+ Signaler</button>`;
@@ -504,7 +506,7 @@ function renderHeader(){
   if(can.export(u)) h+=`<button class="btn" id="aCsv">Export CSV</button>`;
   if(can.export(u)) h+=`<button class="btn" id="aPrint">Imprimer</button>`;
   if(can.admin(u)) h+=`<button class="btn" id="aAdm">Administration${pend?`<span class="badge" aria-label="${pend} demandes">${pend}</span>`:""}</button>`;
-  if(can.admin(u)) h+=`<button class="btn" id="aHist">Historique</button>`;
+  if(can.trash(u)) h+=`<button class="btn" id="aHist">Historique</button>`;
   h+=`<button class="btn ghost" id="aOut">Déconnexion</button>`;
   $("#actions").innerHTML=h;
   $("#aNew")&&($("#aNew").onclick=()=>toast("Touchez le plan à l'endroit du problème pour le signaler."));
@@ -726,8 +728,8 @@ function openTicket(n){
   $("#dMove")&&($("#dMove").onclick=()=>startMove(n));
   $("#dDel")&&($("#dDel").onclick=()=>{$("#dFoot").innerHTML=`<span class="err" style="margin-right:auto">Mettre #${t.num} à la corbeille ?</span><button class="btn" id="dNo">Non</button><button class="btn danger" id="dYes">Oui, supprimer</button>`;
     $("#dNo").onclick=()=>openTicket(n);$("#dYes").onclick=async()=>{
-      const {error}=await sb.from("tickets").update({deleted_at:new Date().toISOString()}).eq("num",n);if(error){fail(error,"Suppression impossible");return;}
-      await refresh();UI.sel=null;closeSheet();renderAll();toast(`Signalement #${n} placé dans la corbeille (Historique, pour le restaurer).`);};});
+      const {error}=await sb.rpc("trash_ticket",{p_num:n});if(error){fail(error,"Suppression impossible");return;}
+      await refresh();UI.sel=null;closeSheet();renderAll();toast(can.trash(u)?`Signalement #${n} placé dans la corbeille (Historique, pour le restaurer).`:`Signalement #${n} supprimé.`);};});
 }
 
 /* ---------- Connexion par lien magique & demande d'accès (RG-SSO) ---------- */
@@ -900,7 +902,7 @@ function openAdmin(){
       <div class="acts"><button class="btn primary" data-a="resident" data-u="${p.id}">Résident</button><button class="btn" data-a="cs_admin" data-u="${p.id}">Conseil syndical</button><button class="btn" data-a="syndic" data-u="${p.id}">Syndic</button><button class="btn" data-a="contractor" data-u="${p.id}">Prestataire</button><button class="btn danger" data-a="no" data-u="${p.id}">Refuser</button></div></div>`).join(""):`<p class="ro">Aucune demande en attente.</p>`}
    </div>
    <div class="box"><h3>Membres (${mem.length})</h3>
-    ${mem.map(p=>`<div class="member"><div><b>${esc(p.name)}</b><div class="meta"><span>${esc(p.email)}</span>${where(p)}</div></div>
+    ${mem.map(p=>p.isAdmin?`<div class="member"><div><b>${esc(p.name)}</b><div class="meta"><span>${esc(p.email)}</span>${where(p)}</div></div><span class="tag">Administrateur</span>${p.id===me().id?`<span class="ro">Vous</span>`:""}</div>`:`<div class="member"><div><b>${esc(p.name)}</b><div class="meta"><span>${esc(p.email)}</span>${where(p)}</div></div>
       <select data-role="${p.id}" aria-label="Rôle de ${esc(p.name)}">${["resident","cs_admin","syndic","contractor"].map(r=>`<option value="${r}" ${p.role===r?"selected":""}>${ROLES[r]}</option>`).join("")}</select>
       ${p.role==="contractor"?`<select data-cat="${p.id}" aria-label="Spécialité de ${esc(p.name)}">${Object.keys(CATS).map(k=>`<option value="${k}" ${p.category===k?"selected":""}>${CATS[k]}</option>`).join("")}</select>`:""}
       ${p.id===me().id?`<span class="ro">Vous</span>`:`<button class="btn danger" data-rm="${p.id}">Retirer</button>`}</div>`).join("")}
@@ -908,8 +910,8 @@ function openAdmin(){
    <div class="box"><h3>Code d'invitation de l'immeuble</h3><p class="ro">À communiquer aux résidents (affichage dans le hall, courrier). Changez-le s'il a circulé hors de la résidence.</p>
     <div class="field"><label for="aCode">Code actuel</label><input id="aCode" class="mono" maxlength="40" value="${esc(S.inviteCode)}"></div>
     <div><button class="btn" id="aCodeSave">Enregistrer le code</button></div></div>
-   <div class="box"><h3>Plans</h3><p class="ro">Sélectionnez d'un coup les 9 images des plans (fichiers dont le nom commence par 01 à 09). Elles sont rangées dans un espace privé, visible uniquement des utilisateurs connectés.</p>
-    <div class="field"><label for="aPlans">Images des plans</label><input id="aPlans" type="file" accept="image/*" multiple></div><p class="ro" id="aPlansMsg"></p></div>`,true);
+   ${can.plans(me())?`<div class="box"><h3>Plans</h3><p class="ro">Sélectionnez d'un coup les 9 images des plans (fichiers dont le nom commence par 01 à 09). Elles sont rangées dans un espace privé, visible uniquement des utilisateurs connectés.</p>
+    <div class="field"><label for="aPlans">Images des plans</label><input id="aPlans" type="file" accept="image/*" multiple></div><p class="ro" id="aPlansMsg"></p></div>`:""}`,true);
   const upd=async(id,patch,msg)=>{const {error}=await sb.from("profiles").update(patch).eq("id",id);if(error){fail(error,"Modification refusée");}else toast(msg);await refresh();renderAll();openAdmin();};
   const del=async(p,msg)=>{const {error}=await sb.from("profiles").delete().eq("id",p.id);if(error){fail(error,"Suppression refusée");}else toast(msg);await refresh();renderAll();openAdmin();};
   $("#layer").querySelectorAll("[data-a]").forEach(b=>b.onclick=()=>{const p=S.users.find(x=>x.id===b.dataset.u);if(!p)return;
@@ -923,13 +925,13 @@ function openAdmin(){
   $("#aCodeSave").onclick=async()=>{const v=$("#aCode").value.trim().toUpperCase();if(v.length<4){toast("Le code doit faire au moins 4 caractères.");return;}
     const {error}=await sb.from("settings").update({invite_code:v}).eq("id",true);if(error){fail(error,"Code non enregistré");return;}
     S.inviteCode=v;$("#aCode").value=v;toast("Code d'invitation mis à jour.");};
-  $("#aPlans").onchange=async e=>{const files=[...e.target.files],msg=$("#aPlansMsg");let ok=0;const bad=[];
+  $("#aPlans")&&($("#aPlans").onchange=async e=>{const files=[...e.target.files],msg=$("#aPlansMsg");let ok=0;const bad=[];
     for(const f of files){const m=/^0?([1-9])(?!\d)/.exec(f.name);if(!m){bad.push(f.name);continue;}
       msg.textContent=`Envoi du plan ${PLAN_NAMES[m[1]]}…`;
       const {error}=await sb.storage.from("plans").upload("p0"+m[1],f,{upsert:true,contentType:f.type||"image/png",cacheControl:"3600"});
       if(error){console.error(error);bad.push(f.name);}else ok++;}
     for(const k in imgs) delete imgs[k];for(const k in orig) delete orig[k];for(const k in variants) delete variants[k];
-    msg.textContent=`${ok} plan${ok>1?"s":""} enregistré${ok>1?"s":""}.`+(bad.length?` Non pris en compte : ${bad.join(", ")}.`:"");drawPlan();};
+    msg.textContent=`${ok} plan${ok>1?"s":""} enregistré${ok>1?"s":""}.`+(bad.length?` Non pris en compte : ${bad.join(", ")}.`:"");drawPlan();});
 }
 
 /* ---------- Ingestion WhatsApp & JSON IA (RG-ING) ---------- */
