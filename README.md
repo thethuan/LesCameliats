@@ -89,3 +89,14 @@ Patch : `supabase/patches/2026-11-12_import_doublons.sql` (à lancer une fois da
 Dans la fiche d'un incident, le Conseil syndical et le syndic ont un bouton **Déplacer** : choisir l'étage, cliquer sur le plan,
 vérifier le logement / parking / cave détecté, puis valider. Le lieu est mis à jour et le changement figure dans l'Historique (« Modifié »).
 Aucun patch SQL : les droits de modification existaient déjà.
+
+## Rôle administrateur (13/11/2026)
+
+Patch : `supabase/patches/2026-11-13_administrateur.sql` (inclus dans `schema.sql`). Test : `supabase/tests/05_administrateur.sql`.
+
+L'administrateur est un membre du Conseil syndical marqué `is_admin`. Lui seul peut importer (WhatsApp, JSON IA),
+changer les plans, voir la corbeille et le journal, restaurer et supprimer définitivement. Ces règles sont imposées par la base.
+Le Conseil syndical met un incident à la corbeille par la fonction `trash_ticket`, mais ne le voit plus ensuite.
+Le compte administrateur ne peut être modifié ni retiré que par un administrateur, et il en reste toujours au moins un.
+Le premier membre du Conseil syndical inscrit devient administrateur ; pour en nommer un autre, passer par le SQL Editor :
+`update public.profiles set is_admin = true where email = '...';`
