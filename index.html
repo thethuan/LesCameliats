@@ -797,6 +797,15 @@ function showOnboarding(email){
     <p class="err" id="oErr" hidden></p>
     <button class="btn primary" type="submit">Envoyer ma demande</button>
    </form>`,true);
+  /* Cage, étage et logement sont liés : choisir l'un filtre les autres, choisir le logement remplit cage et étage. */
+  const lotFloor=n=>{for(const k of Object.keys(LOT_ANCHORS)) if(LOT_ANCHORS[k][n]) return Number(k);return null;};
+  const lotCage=n=>n===1?"A":(APT[n]||"").charAt(0);
+  const fillLots=()=>{const cg=$("#oCage").value,fl=$("#oFloor").value,cur=Number($("#oLot").value)||0;
+    const ok=desigOptions("LOT").filter(([n])=>(!cg||lotCage(n)===cg)&&(fl===""||n===1||lotFloor(n)===Number(fl)));
+    $("#oLot").innerHTML=`<option value="">${ok.length?"Choisir…":"Aucun logement pour cette cage et cet étage"}</option>`+ok.map(([n,l])=>`<option value="${n}" ${n===cur?"selected":""}>${l}</option>`).join("");};
+  $("#oCage").onchange=fillLots;$("#oFloor").onchange=fillLots;
+  $("#oLot").onchange=()=>{const n=Number($("#oLot").value);if(!n)return;
+    $("#oCage").value=lotCage(n);const f=lotFloor(n);if(f!=null&&n!==1)$("#oFloor").value=String(f);};
   $("#fOn").onsubmit=async e=>{e.preventDefault();
     const err=m=>{$("#oErr").textContent=m;$("#oErr").hidden=false;};
     const name=$("#oName").value.trim(),type=$("#oType").value,cage=$("#oCage").value,fl=$("#oFloor").value,lot=Number($("#oLot").value),code=$("#oCode").value.trim().toUpperCase();
