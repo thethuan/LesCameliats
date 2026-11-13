@@ -217,6 +217,20 @@ textarea.code{font-family:var(--f-mono);font-size:12px;min-height:170px}
 .gate-foot{display:flex;gap:14px;flex-wrap:wrap}
 .rgpd-fab{position:fixed;right:12px;bottom:calc(6px + env(safe-area-inset-bottom,0px));z-index:36;font-size:11.5px;opacity:.75;padding:3px 7px;border-radius:6px;background:color-mix(in srgb,var(--surface) 88%,transparent)}
 .rgpd-fab:hover{opacity:1}
+.rgpd-fab{display:flex;gap:12px}.rgpd-fab .lnk{font-size:inherit}
+.scrim.center{justify-content:center;align-items:center;padding:16px}
+.scrim.center .sheet{height:auto;max-height:100%;width:min(440px,100%);border-radius:16px;padding:22px;gap:14px}
+.tuto-art{background:var(--accent-soft);border-radius:12px;padding:16px;display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:center;min-height:84px;text-align:center}
+.tuto-art .mock{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:5px 10px;font-size:13px;font-weight:600}
+.tuto-art .dot{width:26px;height:26px;border-radius:50%;display:inline-grid;place-items:center;color:#fff;font-size:12px;font-weight:700}
+.tuto-art ol{margin:0;padding-left:1.3em;text-align:left;font-size:14px;display:flex;flex-direction:column;gap:4px}
+.tuto h2{font-size:20px;font-weight:800;margin:0}
+.tuto p{margin:0;font-size:14.5px;line-height:1.55}
+.tuto-step{font-size:12px;color:var(--muted);letter-spacing:.06em;text-transform:uppercase;font-weight:600}
+.tuto-dots{display:flex;gap:6px;justify-content:center}
+.tuto-dots i{width:8px;height:8px;border-radius:50%;background:var(--line)}
+.tuto-dots i.on{background:var(--accent)}
+.tuto .foot{justify-content:space-between;align-items:center;margin-top:4px}
 body.locked .main{filter:blur(9px) grayscale(.5);pointer-events:none;user-select:none}
 .lock{position:fixed;left:0;right:0;bottom:0;top:64px;z-index:18;display:flex;align-items:center;justify-content:center;padding:20px;background:color-mix(in srgb,var(--bg) 35%,transparent)}
 .lock[hidden]{display:none}
@@ -307,7 +321,7 @@ body.locked .main{filter:blur(9px) grayscale(.5);pointer-events:none;user-select
 <div id="layer"></div>
 <div id="gate" class="gate"><div class="gate-card"><p class="ro">Chargement…</p></div></div>
 <div id="lock" class="lock" hidden><div class="lock-card"><h2>Compte en attente de validation</h2><p class="ro">Le Conseil syndical doit valider votre demande d'accès. Vous verrez alors les signalements de la résidence. Cette page se met à jour toute seule.</p></div></div>
-<button class="lnk rgpd-fab" type="button" id="rgpdFab">Données personnelles</button>
+<div class="rgpd-fab"><button class="lnk" type="button" id="helpFab" hidden>Aide</button><button class="lnk" type="button" id="rgpdFab">Données personnelles</button></div>
 
 <script src="config.js"></script>
 <script src="vendor/supabase.js"></script>
@@ -570,7 +584,7 @@ function renderList(){
     </div></li>`).join("");
   $("#list").querySelectorAll(".item").forEach(li=>{const go=()=>{const t=S.tickets.find(x=>x.num===Number(li.dataset.n));if(t&&t.floor!==UI.floor){UI.floor=t.floor;renderAll();}openTicket(Number(li.dataset.n));};li.onclick=go;li.onkeydown=e=>{if(e.key==="Enter")go();};});
 }
-function renderAll(){const lk=me().role==="pending";document.body.classList.toggle("locked",lk);$("#lock").hidden=!lk;renderHeader();renderNotices();renderLevels();renderPlanHead();drawPlan();renderPins();renderKpis();renderList();}
+function renderAll(){const lk=me().role==="pending";$("#helpFab").hidden=lk;document.body.classList.toggle("locked",lk);$("#lock").hidden=!lk;renderHeader();renderNotices();renderLevels();renderPlanHead();drawPlan();renderPins();renderKpis();renderList();}
 
 /* ---------- Feuilles ---------- */
 function openSheet(html,wide){
@@ -582,6 +596,60 @@ function openSheet(html,wide){
 function closeSheet(){$("#layer").innerHTML="";if(UI.temp){UI.temp=null;renderPins();}if(UI.sel){UI.sel=null;renderPins();renderList();}}
 document.addEventListener("keydown",e=>{if(e.key==="Escape"&&$("#scrim"))closeSheet();});
 const head=(t,p)=>`<div class="sheet-head"><div><h2>${t}</h2>${p?`<p>${p}</p>`:""}</div><button class="x" data-close aria-label="Fermer">×</button></div>`;
+
+/* ---------- Tutoriel de première connexion (adapté au profil) ---------- */
+const TUTO_V="1";
+const tutoKey=u=>`cameliats:tuto:${TUTO_V}:${u.id}:${u.isAdmin?"admin":u.role}`;
+function tutoSteps(u){
+  const first=esc((u.name||"").trim().split(/\s+/)[0]||"");
+  const pills=`<span class="pill reported">Signalé</span><span class="pill in_progress">En cours</span><span class="pill resolved">Résolu</span>`;
+  const mock=(...l)=>l.map(x=>`<span class="mock">${x}</span>`).join("");
+  const plan={t:"Lire le plan",art:pills,p:"Choisissez un <b>étage</b> dans la liste des niveaux. Chaque pastille numérotée sur le plan est un incident. Sa couleur donne son état. Touchez une pastille, ou une ligne de la liste, pour ouvrir sa fiche."};
+  if(u.role==="resident") return [
+    {t:`Bienvenue${first?", "+first:""}`,art:mock("Voir","Signaler","Suivre"),p:"Cette application sert à <b>signaler un problème</b> dans la résidence (fuite, panne, porte, ascenseur…) et à <b>suivre sa réparation</b>. Voici l'essentiel en quatre écrans."},
+    plan,
+    {t:"Signaler en trois gestes",art:`<ol><li>Touchez le plan <b>à l'endroit du problème</b>.</li><li>Écrivez un titre court, choisissez catégorie et gravité.</li><li>Touchez <b>Déclarer l'incident</b>.</li></ol>`,p:"Avant de signaler, regardez si une pastille existe déjà au même endroit : cela évite les doublons."},
+    {t:"Votre vie privée",art:mock("Sans votre nom","Logement : détails privés"),p:"Les voisins <b>ne voient pas qui a signalé</b>. Pour un incident dans un logement, seuls l'occupant, le Conseil syndical et le syndic voient les détails. Le lien <b>Données personnelles</b>, en bas à droite, explique le reste."}];
+  if(u.role==="contractor") return [
+    {t:`Bienvenue${first?", "+first:""}`,art:mock(CATS[u.category]||"Votre spécialité"),p:"Vous voyez ici <b>les incidents de votre spécialité</b> dans la résidence, placés sur les plans des étages."},
+    plan,
+    {t:"Mettre à jour l'état",art:pills,p:"Ouvrez la fiche d'un incident et changez son <b>statut</b> : <b>En cours</b> quand vous intervenez, <b>Résolu</b> quand c'est terminé. Les résidents voient ce changement tout de suite."}];
+  if(u.role==="syndic") return [
+    {t:`Bienvenue${first?", "+first:""}`,art:mock("Tous les incidents","Statuts","Ordres de service"),p:"Vous voyez <b>tous les incidents</b> de la résidence, avec leur auteur, et vous pilotez leur traitement."},
+    plan,
+    {t:"Traiter un incident",art:mock("Statut","N° d'OS","Entreprise","Déplacer"),p:"Dans la fiche : changez le <b>statut</b>, notez le <b>numéro d'ordre de service</b> et l'<b>entreprise mandatée</b>. <b>Déplacer</b> corrige un incident mal placé sur le plan."},
+    {t:"Exporter",art:mock("Export CSV","Imprimer"),p:"<b>Export CSV</b> donne un fichier pour Excel. <b>Imprimer</b> prépare une version papier, utile en réunion."}];
+  const cs=[
+    {t:`Bienvenue${first?", "+first:""}`,art:mock("Comptes","Incidents","Suivi"),p:u.isAdmin?"Vous êtes <b>administrateur</b> : membre du Conseil syndical, avec des outils en plus que vous êtes seul à voir.":"Vous êtes membre du <b>Conseil syndical</b> : vous validez les comptes des voisins et vous suivez les incidents."},
+    {t:"Valider les voisins",art:mock("Administration <span class=\"pill reported\">2</span>"),p:"Un chiffre rouge sur <b>Administration</b> signale des demandes en attente. Vérifiez le nom et le logement, puis choisissez le rôle (le plus souvent <b>Résident</b>) ou refusez. C'est aussi là que se trouve le <b>code d'invitation</b>."},
+    plan,
+    {t:"Traiter un incident",art:mock("Statut","Ordre de service","Déplacer","Supprimer"),p:"Dans la fiche : changez le <b>statut</b>, notez l'<b>ordre de service</b>, <b>déplacez</b> un incident mal placé. "+(u.isAdmin?"<b>Supprimer</b> l'envoie dans la corbeille, que vous seul pouvez ouvrir.":"<b>Supprimer</b> le retire de la liste ; l'administrateur peut le restaurer.")}];
+  if(u.isAdmin) cs.push({t:"Vos outils d'administrateur",art:mock("Importer","Historique","Plans"),p:"<b>Importer</b> récupère les incidents d'une discussion WhatsApp, sans doublons. <b>Historique</b> contient la corbeille (restaurer, supprimer pour de bon) et le journal des actions. <b>Plans</b>, dans Administration, remplace les images des étages."});
+  cs.push({t:"Discrétion",art:mock("Auteur visible pour vous seulement"),p:"Vous voyez <b>qui a signalé</b> et le détail des logements. Les autres résidents, non. Ne diffusez pas ces informations hors du conseil."});
+  return cs;
+}
+function openTuto(){
+  const u=me();if(!u||u.role==="pending")return;
+  const steps=tutoSteps(u);let i=0;
+  try{localStorage.setItem(tutoKey(u),"1");}catch(e){}
+  const draw=()=>{const st=steps[i],last=i===steps.length-1;
+    $("#layer").innerHTML=`<div class="scrim center" id="scrim"><div class="sheet tuto" role="dialog" aria-modal="true" aria-labelledby="tutoT">
+      <div class="tuto-step">Étape ${i+1} sur ${steps.length}</div>
+      <div class="tuto-art">${st.art}</div>
+      <h2 id="tutoT">${st.t}</h2><p>${st.p}</p>
+      <div class="tuto-dots" aria-hidden="true">${steps.map((_,k)=>`<i class="${k===i?"on":""}"></i>`).join("")}</div>
+      <div class="foot">${last?`<span></span>`:`<button class="lnk" type="button" id="tSkip">Passer</button>`}
+        <span style="display:flex;gap:8px">${i?`<button class="btn" type="button" id="tPrev">Précédent</button>`:""}<button class="btn primary" type="button" id="tNext">${last?"C'est parti":"Suivant"}</button></span></div>
+      ${last?`<p class="ro" style="text-align:center">Pour revoir ce tutoriel : lien <b>Aide</b>, en bas à droite.</p>`:""}</div></div>`;
+    $("#tNext").onclick=()=>{if(last)closeSheet();else{i++;draw();}};
+    $("#tPrev")&&($("#tPrev").onclick=()=>{i--;draw();});
+    $("#tSkip")&&($("#tSkip").onclick=closeSheet);
+    $("#tNext").focus({preventScroll:true});};
+  draw();
+}
+function maybeTuto(){const u=me();if(!u||u.role==="pending"||$("#scrim"))return;
+  let seen=false;try{seen=localStorage.getItem(tutoKey(u))==="1";}catch(e){seen=true;}
+  if(!seen)openTuto();}
 
 /* ---------- Création sur plan (RG-GEO-01) ---------- */
 $("#planWrap").addEventListener("click",e=>{
@@ -835,17 +903,17 @@ async function enter(){
     if(!p){S.me=null;showOnboarding(session.user.email);return;}
     const first=!S.me,prevRole=S.me&&S.me.role;S.me=rowToU(p);
     if(first&&(S.me.role==="resident"||S.me.role==="pending")&&S.me.floor!=null) UI.floor=S.me.floor;
-    await refresh();ungate();renderAll();
+    await refresh();ungate();renderAll();maybeTuto();
     if(!first&&prevRole==="pending"&&S.me.role!=="pending") toast("Votre accès a été validé par le Conseil syndical.");
   } finally {entering=false;}
 }
 function boot(){
-  $("#rgpdFab").onclick=openPrivacy;
+  $("#rgpdFab").onclick=openPrivacy;$("#helpFab").onclick=()=>openTuto();
   if(!sb){gate(`<h2>Configuration manquante</h2><p>Le fichier <span class="mono">config.js</span> doit contenir l'adresse du projet Supabase et sa clé publique.</p>`);return;}
   const herr=/error_description=([^&]+)/.exec(location.hash||"");
   sb.auth.onAuthStateChange(ev=>{
     if(ev==="SIGNED_IN"&&!S.me) setTimeout(enter,0);
-    if(ev==="SIGNED_OUT"&&S.me){S.me=null;showLogin();}
+    if(ev==="SIGNED_OUT"&&S.me){S.me=null;$("#helpFab").hidden=true;showLogin();}
   });
   if(herr){history.replaceState(null,"",location.pathname);showLogin("Ce lien de connexion a expiré ou a déjà servi. Demandez-en un nouveau.");return;}
   enter();

@@ -100,3 +100,10 @@ Le Conseil syndical met un incident à la corbeille par la fonction `trash_ticke
 Le compte administrateur ne peut être modifié ni retiré que par un administrateur, et il en reste toujours au moins un.
 Le premier membre du Conseil syndical inscrit devient administrateur ; pour en nommer un autre, passer par le SQL Editor :
 `update public.profiles set is_admin = true where email = '...';`
+
+## Tutoriel de première connexion (13/11/2026)
+
+À la première connexion (ou dès qu'un compte en attente est validé), un tutoriel court s'ouvre, adapté au profil :
+résident (4 écrans), prestataire (3), syndic (4), Conseil syndical (5), administrateur (6).
+Il ne s'affiche qu'une fois par navigateur (mémorisé dans `localStorage`, aucune donnée envoyée) et se rouvre par le lien **Aide** en bas à droite.
+Pour le montrer de nouveau à tout le monde après une refonte, augmenter `TUTO_V` dans `index.html`.
