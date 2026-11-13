@@ -107,3 +107,11 @@ Le premier membre du Conseil syndical inscrit devient administrateur ; pour en n
 résident (4 écrans), prestataire (3), syndic (4), Conseil syndical (5), administrateur (6).
 Il ne s'affiche qu'une fois par navigateur (mémorisé dans `localStorage`, aucune donnée envoyée) et se rouvre par le lien **Aide** en bas à droite.
 Pour le montrer de nouveau à tout le monde après une refonte, augmenter `TUTO_V` dans `index.html`.
+
+## Parcours sur téléphone (13/11/2026)
+
+* **Signaler sans plan** : le bouton « Signaler un problème » ouvre deux étapes, le lieu (logement, ascenseur, hall, palier, parking, cave, local technique, extérieur) puis le problème (type, une phrase, case « C'est urgent »). L'application prévient si un incident ouvert existe déjà au même endroit, puis affiche une confirmation.
+* **Liste d'abord** : sous 760 px de large, l'accueil montre la liste ; le plan est dans l'onglet « Plan de l'immeuble », affiché sur toute la hauteur et centré sur la cage de l'utilisateur.
+* Un résident qui touche le plan passe par le même formulaire court. Le Conseil syndical et le syndic gardent le formulaire détaillé en touchant le plan.
+* Boutons et filtres à 44 px minimum sur téléphone, bandeau d'information repliable, liens Aide et Données personnelles en bas de page.
+* Non fait : l'e-mail de suivi au résident (demande un envoi côté serveur).

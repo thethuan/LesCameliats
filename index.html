@@ -190,12 +190,47 @@ textarea.code{font-family:var(--f-mono);font-size:12px;min-height:170px}
 .toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--fg);color:var(--bg);padding:9px 16px;border-radius:99px;font-weight:500;z-index:60;box-shadow:var(--shadow);max-width:calc(100% - 32px)}
 
 @media (max-width:1180px){.main{grid-template-columns:170px minmax(0,1fr)}.side{grid-column:1 / -1}.list{max-height:none}}
+.mbar{display:none}
+.btn.big{min-height:54px;font-size:16px;font-weight:700;justify-content:center;border-radius:12px}
+.pgrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.pcard{min-height:64px;border:1px solid var(--line);background:var(--surface);border-radius:12px;padding:10px 12px;text-align:left;display:flex;flex-direction:column;gap:2px;justify-content:center;font-weight:600;font-size:14.5px}
+.pcard small{font-weight:400;color:var(--muted);font-size:12.5px}
+.pcard.sm{min-height:48px;text-align:center;align-items:center}
+.pcard[aria-pressed="true"]{border:2px solid var(--accent);background:var(--accent-soft);padding:9px 11px}
+.fchips{display:flex;flex-wrap:wrap;gap:6px}
+.fchips button{min-width:44px;min-height:44px;border:1px solid var(--line);background:var(--surface);border-radius:10px;font-weight:600;padding:0 10px}
+.fchips button[aria-pressed="true"]{background:var(--fg);color:var(--bg);border-color:var(--fg)}
+.place-pill{display:inline-block;background:var(--accent-soft);border-radius:99px;padding:5px 12px;font-size:13px;font-weight:600}
+.urgent{display:flex;align-items:center;gap:10px;min-height:48px;background:var(--warn-bg);color:var(--warn-fg);border-radius:10px;padding:6px 12px;font-weight:600;font-size:14px}
+.urgent input{width:22px;height:22px;flex:none}
+.simbox{background:var(--warn-bg);color:var(--warn-fg);border-radius:10px;padding:10px 12px;font-size:13.5px}
+.done{display:flex;flex-direction:column;align-items:center;text-align:center;gap:10px;padding-top:24px}
+.done .ok{width:64px;height:64px;border-radius:50%;background:var(--resolved-soft);color:var(--resolved);display:grid;place-items:center}
+.states{display:flex;flex-direction:column;gap:10px;background:var(--bg);border-radius:12px;padding:14px;font-size:14px}
+.states div{display:flex;gap:10px;align-items:baseline}
+details.notice{display:block}
+details.notice summary{cursor:pointer;font-weight:600;min-height:28px;display:flex;align-items:center;gap:8px}
+details.notice summary::after{content:"Détails";font-weight:500;text-decoration:underline;font-size:12px}
+details.notice[open] summary::after{content:"Fermer"}
+details.notice p{margin:6px 0 2px}
 @media (max-width:760px){
   .main{grid-template-columns:minmax(0,1fr);gap:12px;padding-block:12px}
-  .levels{position:static;flex-direction:row;overflow-x:auto;padding:6px}
+  .mbar{display:flex;flex-direction:column;gap:10px}
+  .mbar .seg{display:grid;grid-template-columns:1fr 1fr}
+  #aNew,#scopeSeg,.tools,.legend{display:none}
+  body:not(.planmode) .levels,body:not(.planmode) .plan-card{display:none}
+  body.planmode .side{display:none}
+  .levels{position:static;display:grid;grid-template-columns:repeat(9,minmax(0,1fr));gap:4px;padding:6px}
   .levels h2{display:none}
-  .lvl{grid-template-columns:auto auto;flex:none;padding:6px 10px}
+  .lvl{grid-template-columns:1fr;justify-items:center;gap:0;padding:4px 0;min-height:48px}
   .lvl .nm{display:none}
+  .chip{min-height:44px;padding:0 14px;font-size:13.5px}
+  .seg button{min-height:44px;font-size:13.5px}
+  .btn{min-height:44px}
+  body.planmode .plan-scroll{max-height:none;height:calc(100dvh - 330px);min-height:300px}
+  .pin{transform:translate(-50%,-100%) scale(1.45);transform-origin:50% 100%}
+  body:not(.gated) .rgpd-fab{position:static;justify-content:center;width:max-content;margin:4px auto 18px;background:none;font-size:13px;opacity:1;gap:20px}
+  body:not(.gated) .rgpd-fab .lnk{min-height:44px}
   .who select{max-width:200px}
   .kpi b{font-size:20px}
   .grid2{grid-template-columns:1fr}
@@ -238,7 +273,7 @@ body.locked .main{filter:blur(9px) grayscale(.5);pointer-events:none;user-select
 .lock-card h2{font-size:19px;margin:0 0 8px}
 .pin.priv{opacity:.8;filter:saturate(.6)}
 .pin.priv::before{border-style:dashed}
-@media (max-width:760px){body{padding-bottom:34px}.rgpd-fab{font-size:11px}}
+@media (max-width:760px){body.gated{padding-bottom:34px}.rgpd-fab{font-size:11px}}
 @media print{.rgpd-fab,.lock{display:none}}
 .member{display:flex;flex-wrap:wrap;gap:8px;align-items:center;border:1px solid var(--line);border-radius:10px;padding:8px 10px}
 .member>div:first-child{flex:1 1 180px;min-width:0}
@@ -263,6 +298,13 @@ body.locked .main{filter:blur(9px) grayscale(.5);pointer-events:none;user-select
 <div id="notices"></div>
 
 <main class="main">
+  <div class="mbar" id="mbar">
+    <button class="btn primary big" type="button" id="mNew">+ Signaler un problème</button>
+    <div class="seg" id="viewSeg" role="group" aria-label="Affichage">
+      <button type="button" data-v="list" aria-pressed="true">Liste des incidents</button>
+      <button type="button" data-v="plan" aria-pressed="false">Plan de l'immeuble</button>
+    </div>
+  </div>
   <nav class="panel levels" aria-label="Niveaux">
     <h2>Niveaux</h2>
     <div id="levels" style="display:contents"></div>
@@ -523,7 +565,8 @@ function renderHeader(){
   if(can.trash(u)) h+=`<button class="btn" id="aHist">Historique</button>`;
   h+=`<button class="btn ghost" id="aOut">Déconnexion</button>`;
   $("#actions").innerHTML=h;
-  $("#aNew")&&($("#aNew").onclick=()=>toast("Touchez le plan à l'endroit du problème pour le signaler."));
+  $("#aNew")&&($("#aNew").onclick=()=>openReport());
+  $("#mNew").hidden=!can.declare(u);$("#mNew").onclick=()=>openReport();
   $("#aImp")&&($("#aImp").onclick=openImport);
   $("#aCsv")&&($("#aCsv").onclick=exportCsv);
   $("#aPrint")&&($("#aPrint").onclick=()=>window.print());
@@ -534,7 +577,7 @@ function renderHeader(){
 function renderNotices(){
   const u=me();let h="";
   if(u.role==="resident"){
-    h+=`<div class="notice"><span>👁</span><span>Vue résident, ${desigLong("LOT",u.lot).replace(/^(Appartement|Studio)/,m=>m.toLowerCase())} (cage ${esc(u.cage)}, ${floorOf(u.floor)?.label||""}). Vous voyez tous les signalements de la résidence. Pour le logement d'un autre résident, seuls la catégorie, la gravité et le statut s'affichent, au titre du respect de la vie privée.</span></div>`;}
+    h+=`<details class="notice"><summary>Vue résident · ${desigShort("LOT",u.lot)}</summary><p>Vous voyez tous les signalements de la résidence. Pour le logement d'un autre résident, seuls la catégorie, la gravité et le statut s'affichent, au titre du respect de la vie privée. Votre nom n'est pas montré aux voisins.</p></details>`;}
   if(u.role==="contractor"){h+=`<div class="notice"><span>🔧</span><span>Vue prestataire : seuls les signalements <b>${CATS[u.category]}</b> sont visibles. Vous pouvez faire évoluer leur statut.</span></div>`;}
   $("#notices").innerHTML=h;
 }
@@ -549,7 +592,7 @@ function renderPlanHead(){
   const f=floorOf(UI.floor),u=me();
   $("#lvlTitle").textContent=f.label;
   $("#lvlSub").textContent=`Niveau ${f.id} · ${f.sub}`;
-  $("#planHint").textContent=can.declare(u)?"Touchez une pièce ou une zone du plan pour y déclarer un incident. La zone touchée pré-remplit la localisation, et une pièce d'eau pré-remplit la catégorie Plomberie.":"Votre profil ne permet pas de déclarer d'incident. Touchez une épingle pour voir le détail.";
+  $("#planHint").textContent=can.declare(u)?"Touchez une pastille pour lire un incident. Pour signaler, touchez l'endroit du problème sur le plan, ou utilisez le bouton Signaler.":"Votre profil ne permet pas de déclarer d'incident. Touchez une épingle pour voir le détail.";
 }
 function pinPos(t){   // incident dans le logement d'un autre : épingle générique (étage seulement), jamais l'emplacement exact
   if(!t.masked) return {x:t.x,y:t.y};
@@ -575,7 +618,7 @@ function renderList(){
   vt=vt.filter(t=>UI.status==="all"||(UI.status==="active"?t.status!=="resolved":t.status===UI.status));
   vt.sort((a,b)=>({high:0,medium:1,low:2}[a.urgency]-{high:0,medium:1,low:2}[b.urgency])||b.date.localeCompare(a.date));
   $("#listTitle").textContent=UI.scope==="all"?"Tout l'immeuble":"Signalements · "+floorOf(UI.floor).label;
-  if(!vt.length){$("#list").innerHTML=`<li class="empty">Aucun signalement pour ce filtre.${can.declare(me())?"<br>Touchez le plan pour en déclarer un.":""}</li>`;return;}
+  if(!vt.length){$("#list").innerHTML=`<li class="empty">Aucun signalement pour ce filtre.</li>`;return;}
   $("#list").innerHTML=vt.map(t=>`<li class="item${UI.sel===t.num?" sel":""}" data-n="${t.num}" tabindex="0">
     <span class="num ${t.status}">${t.num}</span>
     <div style="min-width:0"><h3>${esc(t.title)}</h3>
@@ -604,11 +647,11 @@ function tutoSteps(u){
   const first=esc((u.name||"").trim().split(/\s+/)[0]||"");
   const pills=`<span class="pill reported">Signalé</span><span class="pill in_progress">En cours</span><span class="pill resolved">Résolu</span>`;
   const mock=(...l)=>l.map(x=>`<span class="mock">${x}</span>`).join("");
-  const plan={t:"Lire le plan",art:pills,p:"Choisissez un <b>étage</b> dans la liste des niveaux. Chaque pastille numérotée sur le plan est un incident. Sa couleur donne son état. Touchez une pastille, ou une ligne de la liste, pour ouvrir sa fiche."};
+  const plan={t:"Lire le plan",art:pills,p:"Chaque pastille numérotée sur le plan est un incident, et sa couleur donne son état. Choisissez un <b>étage</b>, puis touchez une pastille ou une ligne de la liste pour ouvrir sa fiche. Sur téléphone, le plan est dans l'onglet <b>Plan de l'immeuble</b>."};
   if(u.role==="resident") return [
     {t:`Bienvenue${first?", "+first:""}`,art:mock("Voir","Signaler","Suivre"),p:"Cette application sert à <b>signaler un problème</b> dans la résidence (fuite, panne, porte, ascenseur…) et à <b>suivre sa réparation</b>. Voici l'essentiel en quatre écrans."},
     plan,
-    {t:"Signaler en trois gestes",art:`<ol><li>Touchez le plan <b>à l'endroit du problème</b>.</li><li>Écrivez un titre court, choisissez catégorie et gravité.</li><li>Touchez <b>Déclarer l'incident</b>.</li></ol>`,p:"Avant de signaler, regardez si une pastille existe déjà au même endroit : cela évite les doublons."},
+    {t:"Signaler en trois gestes",art:`<ol><li>Touchez <b>Signaler un problème</b>.</li><li>Choisissez le lieu : ascenseur, hall, parking, votre logement…</li><li>Décrivez en une phrase, puis <b>Envoyer</b>.</li></ol>`,p:"Si le problème est déjà signalé au même endroit, l'application vous le dit : inutile de le refaire."},
     {t:"Votre vie privée",art:mock("Sans votre nom","Logement : détails privés"),p:"Les voisins <b>ne voient pas qui a signalé</b>. Pour un incident dans un logement, seuls l'occupant, le Conseil syndical et le syndic voient les détails. Le lien <b>Données personnelles</b>, en bas à droite, explique le reste."}];
   if(u.role==="contractor") return [
     {t:`Bienvenue${first?", "+first:""}`,art:mock(CATS[u.category]||"Votre spécialité"),p:"Vous voyez ici <b>les incidents de votre spécialité</b> dans la résidence, placés sur les plans des étages."},
@@ -661,9 +704,116 @@ $("#planWrap").addEventListener("click",e=>{
   const r=$("#planWrap").getBoundingClientRect();
   const x=+((e.clientX-r.left)/r.width*100).toFixed(2),y=+((e.clientY-r.top)/r.height*100).toFixed(2);
   const zone=classify(UI.floor,Math.round(x*13.76),Math.round(y*7.68))||PALETTE[4];
+  if(u.role==="resident"){
+    const f=floorOf(UI.floor),cage=cageFromX(x,UI.floor);let pre;
+    if(UI.floor<0&&zone.k==="dry"){const sp=nearestSpot(UI.floor,x,y);
+      pre=sp?{targetType:sp.t,targetId:String(sp.n),location:`${desigShort(sp.t,sp.n)} · ${f.label}`}:{targetType:"COMMON",targetId:"zone-"+cage,location:`Parking · ${f.label}`};}
+    else if(UI.floor>=0&&(zone.k==="dry"||zone.k==="water")){const l=nearestLot(UI.floor,x,y);
+      if(l&&l!==u.lot){toast(`Vous pouvez signaler dans votre logement (${desigShort("LOT",u.lot)}) ou dans une partie commune.`);return;}
+      pre={targetType:"LOT",targetId:String(u.lot),lotNumber:u.lot,room:zone.k==="water"?"CUISINE":"NONE",location:`${desigLong("LOT",u.lot)} · ${zone.k==="water"?"pièce d'eau":"pièce sèche"}`,cat:zone.k==="water"?"plumbing":""};}
+    else pre={targetType:"COMMON",targetId:"zone-"+cage,location:`${zone.label} · secteur cage ${cage} · ${f.label}`,cat:zone.k==="vertical"?"elevator":""};
+    UI.temp={floor:UI.floor,x,y};renderPins();
+    openReport(Object.assign({floor:UI.floor,x,y,room:"NONE"},pre));return;}
   UI.temp={floor:UI.floor,x,y};renderPins();
   openCreate(zone,x,y);
 });
+
+/* ---------- Affichage sur téléphone : liste d'abord, plan en grand à la demande ---------- */
+const isPhone=()=>window.matchMedia("(max-width:760px)").matches;
+function fitPlan(){const w=$("#planWrap"),sc=$("#planScroll");
+  if(isPhone()&&document.body.classList.contains("planmode")){const h=sc.clientHeight;if(h>0){const W=Math.round(h*1376/768),u=S.me,cx=((UI.floor===6?CAGE_X6:CAGE_X)[u&&u.cage]||50)/100;w.style.width=W+"px";sc.scrollLeft=Math.max(0,W*cx-sc.clientWidth/2);}}
+  else w.style.width=(UI.zoom*100)+"%";}
+function setView(v){document.body.classList.toggle("planmode",v==="plan");
+  $("#viewSeg").querySelectorAll("button").forEach(b=>b.setAttribute("aria-pressed",b.dataset.v===v));
+  if(isPhone()&&v!=="plan"&&UI.scope!=="all"){UI.scope="all";renderList();}
+  fitPlan();if(v==="plan")window.scrollTo({top:0});}
+$("#viewSeg").querySelectorAll("button").forEach(b=>b.onclick=()=>setView(b.dataset.v));
+window.addEventListener("resize",fitPlan);
+if(isPhone()) UI.scope="all";
+
+/* ---------- Signaler sans plan : le lieu, puis le problème ---------- */
+const LIEUX=[
+ {k:"home",t:u=>u.role==="resident"?"Mon logement":"Un logement",s:u=>u.role==="resident"&&u.lot?desigLong("LOT",u.lot):"Choisir le logement"},
+ {k:"lift",t:()=>"Ascenseur",s:()=>"Cage A, B ou C",cage:1,floor:1,cat:"elevator"},
+ {k:"hall",t:()=>"Hall ou entrée",s:()=>"Porte, interphone, boîtes aux lettres",cage:1,cat:"door"},
+ {k:"palier",t:()=>"Palier, couloir, escalier",s:()=>"À un étage",cage:1,floor:1},
+ {k:"parking",t:()=>"Parking",s:()=>"Sous-sols 1 et 2"},
+ {k:"cave",t:()=>"Caves",s:()=>"1er sous-sol"},
+ {k:"tech",t:()=>"Local technique, poubelles",s:()=>"Locaux communs",floor:1},
+ {k:"ext",t:()=>"Extérieur, jardin",s:()=>"Abords de l'immeuble"}];
+const CAT_EASY={elevator:"Ascenseur",plumbing:"Eau, fuite",electricity:"Électricité, lumière",door:"Porte, accès",cleanliness:"Propreté",damage:"Autre dégât"};
+function openReport(pre){
+  const u=me();if(!can.declare(u))return;
+  const R={step:pre?2:1,kind:null,cage:u.cage||"",floor:u.floor!=null?u.floor:0,num:"",pfloor:-1,cat:pre&&pre.cat||"",text:"",urgent:false,desc:"",more:false,pre:pre||null};
+  const FT=f=>f===0?"rdc":f===-1?"sous-sol":f===-2?"2e sous-sol":f+"e";
+  const place=()=>LIEUX.find(p=>p.k===R.kind);
+  const where=()=>{if(R.pre)return R.pre;const p=place();if(!p)return {err:"Choisissez d'abord un lieu."};let txt,loc;
+    if((p.cage)&&!R.cage)return {err:"Choisissez la cage : A, B ou C."};
+    if(p.k==="home"){const lot=u.role==="resident"?u.lot:Number(R.num);if(!lot)return {err:"Choisissez le logement."};txt="lot "+lot;loc=desigLong("LOT",lot);}
+    else if(p.k==="lift"){txt=`ascenseur ${R.cage.toLowerCase()} ${FT(R.floor)}`;loc=`Ascenseur ${R.cage} · ${floorOf(R.floor).label}`;}
+    else if(p.k==="palier"){txt=`palier ${R.cage.toLowerCase()} ${FT(R.floor)}`;loc=`Palier ${R.cage} · ${floorOf(R.floor).label}`;}
+    else if(p.k==="hall"){txt=`hall ${R.cage.toLowerCase()} rdc`;loc=`Hall ${R.cage} · ${floorOf(0).label}`;}
+    else if(p.k==="parking"){if(R.num){txt="parking "+(Number(R.num)-67);loc=desigShort("PARKING",R.num);}else{txt=FT(R.pfloor);loc=`Parking · ${floorOf(R.pfloor).label}`;}}
+    else if(p.k==="cave"){if(R.num){txt="cave "+(Number(R.num)-39);loc=desigShort("CAVE",R.num);}else{txt="sous-sol";loc=`Caves · ${floorOf(-1).label}`;}}
+    else if(p.k==="tech"){txt=FT(R.floor);loc=`Local technique ou poubelles · ${floorOf(R.floor).label}`;}
+    else{txt="rdc";loc="Extérieur, jardin";}
+    return Object.assign(resolveSpatial(txt),{location:loc});};
+  const chips=(id,vals,cur)=>`<div class="fchips" id="${id}">${vals.map(([v,l])=>`<button type="button" data-v="${v}" aria-pressed="${String(v)===String(cur)}">${l}</button>`).join("")}</div>`;
+  const step1=()=>{const p=place();
+    openSheet(head("Où est le problème ?","Étape 1 sur 2 · touchez le lieu le plus proche")+`
+     <div class="pgrid" id="rPlaces">${LIEUX.map(q=>`<button type="button" class="pcard" data-k="${q.k}" aria-pressed="${q.k===R.kind}">${q.t(u)}<small>${q.s(u)}</small></button>`).join("")}</div>
+     ${p&&p.cage?`<div class="field"><span class="flabel">Quelle cage ?</span>${chips("rCage",[["A","Cage A"],["B","Cage B"],["C","Cage C"]],R.cage)}</div>`:""}
+     ${p&&p.floor?`<div class="field"><span class="flabel">À quel étage ?</span>${chips("rFloor",FLOORS.slice().sort((a,b)=>a.id-b.id).map(f=>[f.id,SHORT[f.id]]),R.floor)}</div>`:""}
+     ${p&&p.k==="home"&&u.role!=="resident"?`<div class="field"><label for="rNum">Logement</label><select id="rNum"><option value="">Choisir…</option>${desigOptions("LOT").map(([n,l])=>`<option value="${n}" ${String(n)===String(R.num)?"selected":""}>${l}</option>`).join("")}</select></div>`:""}
+     ${p&&(p.k==="parking"||p.k==="cave")?`<div class="field"><label for="rNum">${p.k==="parking"?"Numéro de la place (facultatif)":"Numéro de la cave (facultatif)"}</label><select id="rNum"><option value="">${p.k==="parking"?"Pas une place précise":"Pas une cave précise"}</option>${desigOptions(p.k==="parking"?"PARKING":"CAVE").map(([n,l])=>`<option value="${n}" ${String(n)===String(R.num)?"selected":""}>${l}</option>`).join("")}</select></div>`:""}
+     ${p&&p.k==="parking"&&!R.num?`<div class="field"><span class="flabel">Quel sous-sol ?</span>${chips("rPf",[[-1,"1er sous-sol"],[-2,"2e sous-sol"]],R.pfloor)}</div>`:""}
+     <p class="err" id="rErr" hidden></p>
+     <div class="foot" style="justify-content:space-between;align-items:center"><button type="button" class="lnk" id="rPlan">Montrer l'endroit sur le plan</button><button type="button" class="btn primary" id="rNext">Continuer</button></div>`);
+    $("#rPlaces").querySelectorAll("button").forEach(b=>b.onclick=()=>{if(R.kind!==b.dataset.k){R.kind=b.dataset.k;R.num="";const q=place();if(q.cat)R.cat=q.cat;}step1();});
+    const bind=(id,fn)=>$("#"+id)&&$("#"+id).querySelectorAll("button").forEach(b=>b.onclick=()=>{fn(b.dataset.v);step1();});
+    bind("rCage",v=>R.cage=v);bind("rFloor",v=>R.floor=Number(v));bind("rPf",v=>R.pfloor=Number(v));
+    $("#rNum")&&($("#rNum").onchange=()=>{R.num=$("#rNum").value;step1();});
+    $("#rPlan").onclick=()=>{closeSheet();setView("plan");toast("Choisissez l'étage, puis touchez l'endroit du problème.");};
+    $("#rNext").onclick=()=>{const w=where();if(w.err){$("#rErr").textContent=w.err;$("#rErr").hidden=false;return;}R.step=2;step2();};
+    const sel=$("#rPlaces").querySelector('[aria-pressed="true"]');sel&&p&&sel.scrollIntoView({block:"nearest"});};
+  const step2=()=>{const w=where();
+    const sim=R.cat?S.tickets.filter(t=>!t.masked&&t.status!=="resolved"&&sameSpot(t,Object.assign({},w,{category:R.cat,title:R.text||""}))).slice(0,2):[];
+    openSheet(head("Que se passe-t-il ?",R.pre?"Dernière étape":"Étape 2 sur 2")+`
+     <div><span class="place-pill">${esc(w.location)}</span> <button type="button" class="lnk" id="rBack">Changer de lieu</button></div>
+     <div class="field"><span class="flabel">Type de problème</span><div class="pgrid" id="rCats">${Object.keys(CAT_EASY).map(k=>`<button type="button" class="pcard sm" data-k="${k}" aria-pressed="${R.cat===k}">${CAT_EASY[k]}</button>`).join("")}</div></div>
+     ${sim.length?`<div class="simbox"><b>Déjà signalé au même endroit :</b> ${sim.map(t=>`#${t.num} ${esc(t.title)}`).join(" ; ")}. S'il s'agit du même problème, inutile de le signaler à nouveau.</div>`:""}
+     <div class="field"><label for="rText">Décrivez en une phrase</label><input id="rText" maxlength="140" value="${esc(R.text)}" placeholder="Ex. : la porte du hall ne ferme plus"></div>
+     <label class="urgent"><input type="checkbox" id="rUrg" ${R.urgent?"checked":""}>C'est urgent (danger, personne bloquée, inondation)</label>
+     ${R.more?`<div class="field"><label for="rDesc">Détails (facultatif)</label><textarea id="rDesc" rows="3" maxlength="2000" placeholder="Depuis quand, à quel moment…">${esc(R.desc)}</textarea></div>`:`<div><button type="button" class="lnk" id="rMore">+ Ajouter des détails (facultatif)</button></div>`}
+     <p class="err" id="rErr" hidden></p>
+     <div class="foot" style="flex-direction:column;align-items:stretch"><button type="button" class="btn primary big" id="rSend">Envoyer le signalement</button>${u.role==="resident"?`<p class="ro" style="text-align:center;margin:0">Votre nom ne sera pas affiché aux voisins.</p>`:""}</div>`);
+    const keep=()=>{R.text=$("#rText").value;R.urgent=$("#rUrg").checked;if($("#rDesc"))R.desc=$("#rDesc").value;};
+    $("#rCats").querySelectorAll("button").forEach(b=>b.onclick=()=>{keep();R.cat=b.dataset.k;step2();});
+    $("#rBack").onclick=()=>{keep();if(R.pre){R.pre=null;UI.temp=null;renderPins();}R.step=1;step1();};
+    $("#rMore")&&($("#rMore").onclick=()=>{keep();R.more=true;step2();$("#rDesc").focus();});
+    $("#rSend").onclick=async()=>{keep();const err=m=>{$("#rErr").textContent=m;$("#rErr").hidden=false;};
+      const text=R.text.trim();if(!R.cat)return err("Choisissez le type de problème.");if(!text)return err("Décrivez le problème en une phrase.");
+      const title=text.length>50?text.slice(0,47).trim()+"…":text,desc=[text.length>50?text:"",R.desc.trim()].filter(Boolean).join("\n");
+      const row=tToRow({floor:w.floor,x:w.x,y:w.y,targetType:w.targetType,targetId:w.targetId,lotNumber:w.targetType==="LOT"?Number(w.lotNumber||w.targetId):undefined,
+        location:w.location.slice(0,120),title,category:R.cat,urgency:R.urgent?"high":"medium",status:"reported",date:today(),author:u.name,description:desc,room:w.room||"NONE"});
+      $("#rSend").disabled=true;
+      const {error}=await sb.from("tickets").insert(row);
+      if(error){$("#rSend").disabled=false;fail(error,"Signalement non enregistré");return;}
+      const before=new Set(S.tickets.map(x=>x.num));await refresh();UI.temp=null;
+      const created=S.tickets.filter(x=>!before.has(x.num)).sort((a,b)=>b.num-a.num)[0];renderAll();done(created);};
+    if(R.cat&&!R.text)$("#rText").focus({preventScroll:true});};
+  const done=created=>{
+    openSheet(`<div class="done"><span class="ok"><svg aria-hidden="true" width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></span>
+      <h2>C'est signalé, merci</h2><p class="ro" style="margin:0">${created?`Signalement #${created.num}. `:""}Le Conseil syndical et le syndic le voient dès maintenant. Vous n'avez rien d'autre à faire.</p></div>
+     <div class="states"><b>Et maintenant ?</b>
+      <div><span class="pill reported">Signalé</span><span>Votre message est enregistré.</span></div>
+      <div><span class="pill in_progress">En cours</span><span>Une entreprise est prévenue.</span></div>
+      <div><span class="pill resolved">Résolu</span><span>La réparation est faite.</span></div>
+      <span class="ro">Revenez sur l'application pour suivre l'état de votre signalement.</span></div>
+     <div class="foot" style="flex-direction:column;align-items:stretch"><button type="button" class="btn primary big" data-close>Retour à l'accueil</button><button type="button" class="btn" id="rAgain" style="justify-content:center">Signaler autre chose</button></div>`);
+    $("#rAgain").onclick=()=>openReport();};
+  R.step===2?step2():step1();
+}
 function openCreate(zone,x,y){
   const u=me(),f=floorOf(UI.floor),cage=cageFromX(x,UI.floor);
   let tt="COMMON",num="",found="",warn="";
@@ -672,7 +822,7 @@ function openCreate(zone,x,y){
   if(u.role==="resident"&&tt==="LOT"){if(num&&num!==u.lot)warn=`Vous ne pouvez déclarer que pour votre logement (${desigShort("LOT",u.lot)}) ou pour une partie commune.`;num=u.lot;}
   const loc=tt==="LOT"&&num?`${desigLong("LOT",num)} · ${zone.k==="water"?"pièce d'eau":"pièce sèche"} · ${f.label}`:(tt!=="COMMON"&&num?`${desigShort(tt,num)} · ${f.label}`:`${zone.label} · secteur cage ${cage} · ${f.label}`);
   const cat=zone.k==="water"?"plumbing":(zone.k==="vertical"?"elevator":"");
-  openSheet(head("Nouveau signalement",`${f.label} · point (${x.toFixed(1)} %, ${y.toFixed(1)} %)`)+`
+  openSheet(head("Nouveau signalement",f.label)+`
    <div class="detect">Zone détectée : <b>${UI.floor<0&&zone.k==="dry"?"Stationnement / cave":zone.label}</b>${found?` dans <b>${found}</b>`:""}${zone.k==="water"?", catégorie Plomberie pré-remplie":""}.</div>${warn?`<p class="err">${warn}</p>`:""}
    <form id="fNew" style="display:contents" novalidate>
     <div class="field"><label for="nLoc">Localisation</label><input id="nLoc" value="${esc(loc)}" maxlength="80"></div>
@@ -805,9 +955,9 @@ const GBRAND=`<div class="brand"><svg width="34" height="34" viewBox="0 0 34 34"
 function gate(html,withOut){
   const g=$("#gate");
   g.innerHTML=`<div class="gate-card">${GBRAND}${html}<p class="gate-foot">${withOut?`<button class="lnk" type="button" id="gOut">Se déconnecter</button>`:""}</p></div>`;
-  g.hidden=false;$("#gOut")&&($("#gOut").onclick=signOut);
+  g.hidden=false;document.body.classList.add("gated");$("#gOut")&&($("#gOut").onclick=signOut);
 }
-function ungate(){const g=$("#gate");g.hidden=true;g.innerHTML="";}
+function ungate(){const g=$("#gate");g.hidden=true;g.innerHTML="";document.body.classList.remove("gated");}
 async function signOut(){$("#layer").innerHTML="";try{await sb.auth.signOut();}catch(e){}S.me=null;S.tickets=[];S.users=[];showLogin();}
 function showLogin(msg){
   gate(`<h2>Connexion</h2><p class="ro">Saisissez votre adresse e-mail : vous recevrez un lien de connexion. Aucun mot de passe à retenir.</p>
