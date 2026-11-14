@@ -115,3 +115,14 @@ Pour le montrer de nouveau à tout le monde après une refonte, augmenter `TUTO_
 * Un résident qui touche le plan passe par le même formulaire court. Le Conseil syndical et le syndic gardent le formulaire détaillé en touchant le plan.
 * Boutons et filtres à 44 px minimum sur téléphone, bandeau d'information repliable, liens Aide et Données personnelles en bas de page.
 * Non fait : l'e-mail de suivi au résident (demande un envoi côté serveur).
+
+## Photos jointes aux signalements (14/11/2026)
+
+Patch : `supabase/patches/2026-11-14_photos.sql` (inclus dans `schema.sql`). Test : `supabase/tests/06_photos.sql`.
+
+* Six photos au maximum par signalement, rangées dans un espace de stockage privé (`photos`), un dossier par numéro.
+* La visibilité suit celle du signalement : la photo d'un logement privé n'est servie qu'à ce logement, au Conseil syndical et au syndic. Les liens sont signés et valables une heure.
+* Le navigateur n'écrit jamais la colonne `tickets.photos` : il envoie le fichier puis appelle `add_ticket_photos`, qui vérifie le droit et le nom du fichier. `remove_ticket_photo` retire une photo (auteur ou Conseil syndical).
+* Avant l'envoi, la photo est redessinée sur une toile (1600 px au maximum, WebP) : cela réduit le poids et supprime les données cachées de l'appareil, dont la position GPS.
+* La suppression définitive d'un signalement efface aussi ses fichiers.
+* Un résident peut de nouveau lire **ses** lignes dans la table `tickets` (colonnes autorisées uniquement) : l'application a besoin du numéro du signalement qu'elle vient de créer pour y rattacher les photos.

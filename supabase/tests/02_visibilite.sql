@@ -30,10 +30,11 @@ select num, title, location, target_id, lot_number, x, y, description, author, d
 insert into tickets(floor,x,y,target_type,target_id,lot_number,location,title,category,urgency) values (2,1,1,'LOT','22',22,'x','mine','damage','low');
 insert into tickets(floor,x,y,target_type,location,title,category,urgency) values (0,1,1,'COMMON','x','mon hall','door','low');
 select num, title, author from tickets_feed where num>=5 order by num;
-\echo == C resident ne peut PAS lire la table directement (attendu : 0 ligne / erreur)
-select count(*) from tickets;
+\echo == C dans la table, un resident ne lit que SES signalements (attendu 2, les siens),
+\echo ==   jamais ceux des voisins (attendu 0) ni la colonne auteur (erreur attendue)
+select count(*) as mes_lignes_attendu_2 from tickets;
+select count(*) as lignes_des_voisins_attendu_0 from tickets where num in (1,2,3,4);
 select author from tickets;
-select count(*) from tickets where title='x';
 \echo == D resident autre (Paul, lot 8) : voit le titre de B22, pas celui de Karim, et aucun auteur
 select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-000000000003',false);
 select num, title, author, detail from tickets_feed order by num;
