@@ -1127,6 +1127,7 @@ function showOnboarding(email){
     const {data,error}=await sb.rpc("request_access",{p_name:name,p_type:type,p_cage:ext?null:cage,p_floor:ext?null:Number(fl),p_lot:ext?null:lot,p_code:""});
     btn.disabled=false;
     if(error) return err("La demande n'a pas pu être envoyée. Vérifiez votre connexion et réessayez.");
+    if(data==="bad_code") return err("L'inscription est en cours de mise à jour. Réessayez dans quelques minutes.");
     if(data==="full") return err("Trop de demandes sont en attente pour le moment. Réessayez plus tard ou écrivez au Conseil syndical.");
     if(data==="locked") return err("Trop d'essais. Réessayez dans une heure.");
     await enter();
