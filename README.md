@@ -126,3 +126,9 @@ Patch : `supabase/patches/2026-11-14_photos.sql` (inclus dans `schema.sql`). Tes
 * Avant l'envoi, la photo est redessinée sur une toile (1600 px au maximum, WebP) : cela réduit le poids et supprime les données cachées de l'appareil, dont la position GPS.
 * La suppression définitive d'un signalement efface aussi ses fichiers.
 * Un résident peut de nouveau lire **ses** lignes dans la table `tickets` (colonnes autorisées uniquement) : l'application a besoin du numéro du signalement qu'elle vient de créer pour y rattacher les photos.
+
+## Inscription sans code d'invitation (14/11/2026)
+
+Patch : `supabase/patches/2026-11-14_sans_code_invitation.sql` (inclus dans `schema.sql`).
+Toute personne connectée (e-mail vérifié ou Google) peut déposer une demande d'accès ; elle reste « en attente », sans rien voir,
+jusqu'à validation par le Conseil syndical. Garde-fou : 40 demandes en attente au maximum. La table `settings` reste en place mais ne sert plus.
