@@ -190,6 +190,12 @@ textarea.code{font-family:var(--f-mono);font-size:12px;min-height:170px}
 .toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--fg);color:var(--bg);padding:9px 16px;border-radius:99px;font-weight:500;z-index:60;box-shadow:var(--shadow);max-width:calc(100% - 32px)}
 
 @media (max-width:1180px){.main{grid-template-columns:170px minmax(0,1fr)}.side{grid-column:1 / -1}.list{max-height:none}}
+.photos{display:flex;flex-wrap:wrap;gap:8px}
+.photos .ph{position:relative;display:block;width:92px;height:92px;border-radius:10px;overflow:hidden;border:1px solid var(--line);background:var(--bg)}
+.photos .ph img{width:100%;height:100%;object-fit:cover;display:block}
+.photos .ph.wait,.photos .ph.gone{display:grid;place-items:center;text-align:center;font-size:11px;color:var(--muted);padding:4px;text-decoration:none}
+.photos .rm{position:absolute;top:3px;right:3px;width:28px;height:28px;border-radius:50%;border:0;background:rgba(10,10,20,.66);color:#fff;font-size:16px;line-height:1;cursor:pointer;padding:0}
+.phadd{min-height:44px;justify-content:center;width:max-content}
 .mbar{display:none}
 .btn.big{min-height:54px;font-size:16px;font-weight:700;justify-content:center;border-radius:12px}
 .pgrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
@@ -437,7 +443,7 @@ function floorDefault(f){ return f<0?{x:50,y:50}:{x:50,y:58}; }
 const CFG=window.FELLINI_CONFIG||{};
 const sb=(CFG.url&&CFG.key&&window.supabase)?window.supabase.createClient(CFG.url,CFG.key):null;
 let S={me:null,tickets:[],users:[],inviteCode:"",hidden:0};
-const rowToT=r=>({masked:r.detail===false,num:r.num,floor:r.floor,x:+r.x,y:+r.y,targetType:r.target_type,targetId:r.target_id,lotNumber:r.lot_number??undefined,room:r.room,location:r.location,title:r.title,category:r.category,urgency:r.urgency,status:r.status,date:r.date,author:r.author,description:r.description,osNumber:r.os_number,assignedContractor:r.assigned_contractor,source:r.source});
+const rowToT=r=>({masked:r.detail===false,num:r.num,floor:r.floor,x:+r.x,y:+r.y,targetType:r.target_type,targetId:r.target_id,lotNumber:r.lot_number??undefined,room:r.room,location:r.location,title:r.title,category:r.category,urgency:r.urgency,status:r.status,date:r.date,author:r.author,description:r.description,osNumber:r.os_number,assignedContractor:r.assigned_contractor,source:r.source,photos:Array.isArray(r.photos)?r.photos:[]});
 const tToRow=t=>({floor:t.floor,x:t.x,y:t.y,target_type:t.targetType,target_id:String(t.targetId??""),lot_number:t.targetType==="LOT"?Number(t.lotNumber):null,room:t.room||"NONE",location:String(t.location||"").slice(0,120)||"Non précisé",title:String(t.title).slice(0,50),category:t.category,urgency:t.urgency,status:t.status||"reported",date:t.date,author:String(t.author||"").slice(0,80),description:String(t.description||"").slice(0,4000),os_number:t.osNumber||"",assigned_contractor:t.assignedContractor||"",source:t.source||"app",...(t.importKey?{import_key:t.importKey}:{})});
 const rowToU=r=>({id:r.id,name:r.name,role:r.role,lot:r.lot,cage:r.cage,floor:r.floor,residentType:r.resident_type||"",category:r.category||"",email:r.email||"",isAdmin:r.is_admin===true,requested:String(r.requested_at||"").slice(0,10)});
 function fail(error,what){
@@ -651,7 +657,7 @@ function tutoSteps(u){
   if(u.role==="resident") return [
     {t:`Bienvenue${first?", "+first:""}`,art:mock("Voir","Signaler","Suivre"),p:"Cette application sert à <b>signaler un problème</b> dans la résidence (fuite, panne, porte, ascenseur…) et à <b>suivre sa réparation</b>. Voici l'essentiel en quatre écrans."},
     plan,
-    {t:"Signaler en trois gestes",art:`<ol><li>Touchez <b>Signaler un problème</b>.</li><li>Choisissez le lieu : ascenseur, hall, parking, votre logement…</li><li>Décrivez en une phrase, puis <b>Envoyer</b>.</li></ol>`,p:"Si le problème est déjà signalé au même endroit, l'application vous le dit : inutile de le refaire."},
+    {t:"Signaler en trois gestes",art:`<ol><li>Touchez <b>Signaler un problème</b>.</li><li>Choisissez le lieu : ascenseur, hall, parking, votre logement…</li><li>Décrivez en une phrase, ajoutez une photo si vous le souhaitez, puis <b>Envoyer</b>.</li></ol>`,p:"Une photo aide beaucoup à comprendre le problème. Si l'incident est déjà signalé au même endroit, l'application vous le dit : inutile de le refaire."},
     {t:"Votre vie privée",art:mock("Sans votre nom","Logement : détails privés"),p:"Les voisins <b>ne voient pas qui a signalé</b>. Pour un incident dans un logement, seuls l'occupant, le Conseil syndical et le syndic voient les détails. Le lien <b>Données personnelles</b>, en bas à droite, explique le reste."}];
   if(u.role==="contractor") return [
     {t:`Bienvenue${first?", "+first:""}`,art:mock(CATS[u.category]||"Votre spécialité"),p:"Vous voyez ici <b>les incidents de votre spécialité</b> dans la résidence, placés sur les plans des étages."},
@@ -731,6 +737,62 @@ $("#viewSeg").querySelectorAll("button").forEach(b=>b.onclick=()=>setView(b.data
 window.addEventListener("resize",fitPlan);
 if(isPhone()) UI.scope="all";
 
+/* ---------- Photos : réduction avant envoi, liens signés, envoi, retrait ---------- */
+const MAXPH=6, PHOTO_MAX=1600;
+const PHWARN="Évitez les visages, les plaques d'immatriculation et l'intérieur des logements. Les photos sont visibles par les mêmes personnes que le signalement ; la position GPS de la prise de vue est retirée avant l'envoi.";
+/* Le redessin sur une toile réduit le poids et supprime au passage les données cachées de l'appareil (GPS, modèle). */
+async function shrinkPhoto(file){
+  if(!/^image\//.test(file.type||"")) throw new Error("Ce fichier n'est pas une image.");
+  if(file.size>25*1024*1024) throw new Error("Photo trop lourde (25 Mo au maximum).");
+  const url=URL.createObjectURL(file);
+  try{
+    const img=await new Promise((ok,no)=>{const i=new Image();i.onload=()=>ok(i);i.onerror=()=>no(new Error("Photo illisible."));i.src=url;});
+    const sc=Math.min(1,PHOTO_MAX/Math.max(img.naturalWidth,img.naturalHeight));
+    const c=document.createElement("canvas");c.width=Math.max(1,Math.round(img.naturalWidth*sc));c.height=Math.max(1,Math.round(img.naturalHeight*sc));
+    const cx=c.getContext("2d");cx.fillStyle="#fff";cx.fillRect(0,0,c.width,c.height);cx.drawImage(img,0,0,c.width,c.height);
+    let b=await new Promise(r=>c.toBlob(r,"image/webp",.75));
+    if(!b||b.type!=="image/webp") b=await new Promise(r=>c.toBlob(r,"image/jpeg",.8));
+    if(!b) throw new Error("Photo non convertie.");
+    return b;
+  } finally { URL.revokeObjectURL(url); }
+}
+const phExt=b=>b.type==="image/webp"?"webp":b.type==="image/png"?"png":"jpg";
+const phName=()=>(Math.random().toString(36).slice(2,10)+Math.random().toString(36).slice(2,6)).replace(/[^0-9a-z]/g,"x");
+async function uploadPhotos(num,blobs){
+  const paths=[];
+  for(const b of blobs){const path=`${num}/${phName()}.${phExt(b)}`;
+    const {error}=await sb.storage.from("photos").upload(path,b,{contentType:b.type});
+    if(error) throw error;
+    paths.push(path);}
+  const {error}=await sb.rpc("add_ticket_photos",{p_num:num,p_paths:paths});
+  if(error) throw error;
+  return paths;
+}
+const PHURL=new Map();
+async function photoUrl(path){
+  const c=PHURL.get(path);if(c&&c.exp>Date.now())return c.url;
+  const {data,error}=await sb.storage.from("photos").createSignedUrl(path,3600);
+  if(error||!data)return null;
+  PHURL.set(path,{url:data.signedUrl,exp:Date.now()+50*60*1000});return data.signedUrl;
+}
+async function fillPhotos(box,paths,rmNum){
+  if(!box)return;
+  if(!paths.length){box.innerHTML=`<span class="ro">Aucune photo.</span>`;return;}
+  box.innerHTML=paths.map((_,i)=>`<span class="ph wait" data-i="${i}">Chargement…</span>`).join("");
+  for(let i=0;i<paths.length;i++){
+    const url=await photoUrl(paths[i]),el=box.querySelector(`[data-i="${i}"]`);if(!el)return;
+    if(!url){el.className="ph gone";el.textContent="Photo indisponible";continue;}
+    const rm=rmNum?`<button type="button" class="rm" data-p="${esc(paths[i])}" aria-label="Retirer la photo ${i+1}">×</button>`:"";
+    el.outerHTML=`<span class="ph"><a href="${url}" target="_blank" rel="noopener"><img src="${url}" alt="Photo ${i+1} du signalement" loading="lazy"></a>${rm}</span>`;
+  }
+  rmNum&&box.querySelectorAll(".rm").forEach(b=>b.onclick=async()=>{
+    b.disabled=true;
+    const {error}=await sb.rpc("remove_ticket_photo",{p_num:rmNum,p_path:b.dataset.p});
+    if(error){b.disabled=false;fail(error,"Photo non retirée");return;}
+    await sb.storage.from("photos").remove([b.dataset.p]);PHURL.delete(b.dataset.p);
+    await refresh();openTicket(rmNum);toast("Photo retirée.");});
+}
+
 /* ---------- Signaler sans plan : le lieu, puis le problème ---------- */
 const LIEUX=[
  {k:"home",t:u=>u.role==="resident"?"Mon logement":"Un logement",s:u=>u.role==="resident"&&u.lot?desigLong("LOT",u.lot):"Choisir le logement"},
@@ -744,7 +806,7 @@ const LIEUX=[
 const CAT_EASY={elevator:"Ascenseur",plumbing:"Eau, fuite",electricity:"Électricité, lumière",door:"Porte, accès",cleanliness:"Propreté",damage:"Autre dégât"};
 function openReport(pre){
   const u=me();if(!can.declare(u))return;
-  const R={step:pre?2:1,kind:null,cage:u.cage||"",floor:u.floor!=null?u.floor:0,num:"",pfloor:-1,cat:pre&&pre.cat||"",text:"",urgent:false,desc:"",more:false,pre:pre||null};
+  const R={step:pre?2:1,kind:null,cage:u.cage||"",floor:u.floor!=null?u.floor:0,num:"",pfloor:-1,cat:pre&&pre.cat||"",text:"",urgent:false,desc:"",more:false,photos:[],pre:pre||null};
   const FT=f=>f===0?"rdc":f===-1?"sous-sol":f===-2?"2e sous-sol":f+"e";
   const place=()=>LIEUX.find(p=>p.k===R.kind);
   const where=()=>{if(R.pre)return R.pre;const p=place();if(!p)return {err:"Choisissez d'abord un lieu."};let txt,loc;
@@ -784,10 +846,27 @@ function openReport(pre){
      ${sim.length?`<div class="simbox"><b>Déjà signalé au même endroit :</b> ${sim.map(t=>`#${t.num} ${esc(t.title)}`).join(" ; ")}. S'il s'agit du même problème, inutile de le signaler à nouveau.</div>`:""}
      <div class="field"><label for="rText">Décrivez en une phrase</label><input id="rText" maxlength="140" value="${esc(R.text)}" placeholder="Ex. : la porte du hall ne ferme plus"></div>
      <label class="urgent"><input type="checkbox" id="rUrg" ${R.urgent?"checked":""}>C'est urgent (danger, personne bloquée, inondation)</label>
+     <div class="field"><span class="flabel">Photos (facultatif, ${MAXPH} au maximum)</span>
+      <div class="photos" id="rPh"></div>
+      <label class="btn phadd" for="rFile" id="rFileL">Ajouter une photo</label>
+      <input id="rFile" type="file" accept="image/*" multiple hidden>
+      <p class="ro">${PHWARN}</p></div>
      ${R.more?`<div class="field"><label for="rDesc">Détails (facultatif)</label><textarea id="rDesc" rows="3" maxlength="2000" placeholder="Depuis quand, à quel moment…">${esc(R.desc)}</textarea></div>`:`<div><button type="button" class="lnk" id="rMore">+ Ajouter des détails (facultatif)</button></div>`}
      <p class="err" id="rErr" hidden></p>
      <div class="foot" style="flex-direction:column;align-items:stretch"><button type="button" class="btn primary big" id="rSend">Envoyer le signalement</button>${u.role==="resident"?`<p class="ro" style="text-align:center;margin:0">Votre nom ne sera pas affiché aux voisins.</p>`:""}</div>`);
     const keep=()=>{R.text=$("#rText").value;R.urgent=$("#rUrg").checked;if($("#rDesc"))R.desc=$("#rDesc").value;};
+    const drawPh=()=>{const box=$("#rPh");if(!box)return;
+      box.innerHTML=R.photos.map((ph,i)=>`<span class="ph"><img src="${ph.url}" alt="Photo ${i+1}"><button type="button" class="rm" data-i="${i}" aria-label="Retirer la photo ${i+1}">×</button></span>`).join("");
+      box.querySelectorAll(".rm").forEach(b=>b.onclick=()=>{const i=+b.dataset.i;URL.revokeObjectURL(R.photos[i].url);R.photos.splice(i,1);drawPh();});
+      $("#rFileL").hidden=R.photos.length>=MAXPH;$("#rFileL").textContent=R.photos.length?"Ajouter une autre photo":"Ajouter une photo";};
+    $("#rFile").onchange=async e=>{const files=[...e.target.files];e.target.value="";
+      $("#rFileL").textContent="Préparation…";
+      for(const f of files){
+        if(R.photos.length>=MAXPH){toast(`${MAXPH} photos au maximum.`);break;}
+        try{const b=await shrinkPhoto(f);R.photos.push({blob:b,url:URL.createObjectURL(b)});}
+        catch(err){toast(err.message||"Photo illisible.");}}
+      drawPh();};
+    drawPh();
     $("#rCats").querySelectorAll("button").forEach(b=>b.onclick=()=>{keep();R.cat=b.dataset.k;step2();});
     $("#rBack").onclick=()=>{keep();if(R.pre){R.pre=null;UI.temp=null;renderPins();}R.step=1;step1();};
     $("#rMore")&&($("#rMore").onclick=()=>{keep();R.more=true;step2();$("#rDesc").focus();});
@@ -796,15 +875,19 @@ function openReport(pre){
       const title=text.length>50?text.slice(0,47).trim()+"…":text,desc=[text.length>50?text:"",R.desc.trim()].filter(Boolean).join("\n");
       const row=tToRow({floor:w.floor,x:w.x,y:w.y,targetType:w.targetType,targetId:w.targetId,lotNumber:w.targetType==="LOT"?Number(w.lotNumber||w.targetId):undefined,
         location:w.location.slice(0,120),title,category:R.cat,urgency:R.urgent?"high":"medium",status:"reported",date:today(),author:u.name,description:desc,room:w.room||"NONE"});
-      $("#rSend").disabled=true;
-      const {error}=await sb.from("tickets").insert(row);
-      if(error){$("#rSend").disabled=false;fail(error,"Signalement non enregistré");return;}
-      const before=new Set(S.tickets.map(x=>x.num));await refresh();UI.temp=null;
-      const created=S.tickets.filter(x=>!before.has(x.num)).sort((a,b)=>b.num-a.num)[0];renderAll();done(created);};
+      $("#rSend").disabled=true;$("#rSend").textContent="Envoi…";
+      const {data,error}=await sb.from("tickets").insert(row).select("num").single();
+      if(error){$("#rSend").disabled=false;$("#rSend").textContent="Envoyer le signalement";fail(error,"Signalement non enregistré");return;}
+      let phErr=null;
+      if(R.photos.length){$("#rSend").textContent=R.photos.length>1?"Envoi des photos…":"Envoi de la photo…";
+        try{await uploadPhotos(data.num,R.photos.map(ph=>ph.blob));}catch(e){phErr=e;}}
+      R.photos.forEach(ph=>URL.revokeObjectURL(ph.url));R.photos=[];
+      await refresh();UI.temp=null;renderAll();done(data,phErr);};
     if(R.cat&&!R.text)$("#rText").focus({preventScroll:true});};
-  const done=created=>{
+  const done=(created,phErr)=>{
     openSheet(`<div class="done"><span class="ok"><svg aria-hidden="true" width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></span>
-      <h2>C'est signalé, merci</h2><p class="ro" style="margin:0">${created?`Signalement #${created.num}. `:""}Le Conseil syndical et le syndic le voient dès maintenant. Vous n'avez rien d'autre à faire.</p></div>
+      <h2>C'est signalé, merci</h2><p class="ro" style="margin:0">${created?`Signalement #${created.num}. `:""}Le Conseil syndical et le syndic le voient dès maintenant. Vous n'avez rien d'autre à faire.</p>
+      ${phErr?`<p class="err" style="margin:0">Les photos n'ont pas pu être envoyées (${esc(phErr.message||"erreur")}). Le signalement est bien enregistré : rouvrez-le pour y ajouter les photos.</p>`:""}</div>
      <div class="states"><b>Et maintenant ?</b>
       <div><span class="pill reported">Signalé</span><span>Votre message est enregistré.</span></div>
       <div><span class="pill in_progress">En cours</span><span>Une entreprise est prévenue.</span></div>
@@ -925,7 +1008,10 @@ function openTicket(n){
   const st=can.status(u,t)?`<div class="seg" id="dSt" role="group" aria-label="Statut">${Object.keys(STAT).map(k=>`<button data-s="${k}" aria-pressed="${t.status===k}">${STAT[k]}</button>`).join("")}</div>`:`<span class="pill ${t.status}">${STAT[t.status]}</span> <span class="ro">Lecture seule</span>`;
   const os=can.os(u)?`<div class="grid2"><div class="field"><label for="dOs">N° d'ordre de service</label><input id="dOs" class="mono" value="${esc(t.osNumber)}" placeholder="OS-2026-105"></div><div class="field"><label for="dCo">Entreprise mandatée</label><input id="dCo" value="${esc(t.assignedContractor)}" placeholder="Ets Martin Plomberie"></div></div><div><button class="btn" id="dSaveOs">Enregistrer l'OS</button></div>`
     :`<div class="meta">${t.osNumber?`<span class="tag mono">${esc(t.osNumber)}</span>`:`<span class="ro">Pas encore d'ordre de service</span>`}${t.assignedContractor?`<span class="tag">${esc(t.assignedContractor)}</span>`:""}</div>`;
-  openSheet(head(`#${t.num} · ${esc(t.title)}`,`${f.label} · ${esc(t.location)}`)+`
+  const mine=!!t.author||u.role==="contractor"||can.os(u), canPh=mine&&t.status!=="resolved"||can.os(u)||!!t.author;
+  const phBox=(t.photos&&t.photos.length)||canPh?`<div class="box"><h3>Photos</h3><div class="photos" id="dPh"></div>
+    ${canPh?`<label class="btn phadd" for="dFile" id="dFileL">Ajouter une photo</label><input id="dFile" type="file" accept="image/*" multiple hidden><p class="ro">${PHWARN}</p>`:""}</div>`:"";
+  openSheet(head(`#${t.num} · ${esc(t.title)}`,t.location.includes(f.label)?esc(t.location):`${f.label} · ${esc(t.location)}`)+`
    <dl class="dl">
     <dt>Catégorie</dt><dd>${CATS[t.category]}</dd>
     <dt>Gravité</dt><dd class="${t.urgency==="high"?"urg-high":""}">${URG[t.urgency]}</dd>
@@ -934,9 +1020,17 @@ function openTicket(n){
     <dt>Origine</dt><dd>${t.source==="whatsapp"?"Passerelle WhatsApp":t.source==="json"?"Import JSON IA":"Application"}</dd>
     <dt>Description</dt><dd>${esc(t.description)||"<span class='ro'>Aucune</span>"}</dd>
    </dl>
+   ${phBox}
    <div class="box"><h3>Statut</h3>${st}</div>
    <div class="box"><h3>Ordre de service</h3>${os}</div>
    <div class="foot" id="dFoot">${can.del(u)?`<button class="btn danger" id="dDel">Supprimer</button>`:""}${can.os(u)?`<button class="btn" id="dMove">Déplacer</button>`:""}<button class="btn" data-close>Fermer</button></div>`);
+  fillPhotos($("#dPh"),t.photos||[],(can.del(u)||!!t.author)?n:0);
+  $("#dFile")&&($("#dFile").onchange=async e=>{const files=[...e.target.files].slice(0,MAXPH);e.target.value="";
+    const lab=$("#dFileL");lab.textContent="Envoi…";
+    try{const blobs=[];for(const f of files) blobs.push(await shrinkPhoto(f));
+      if(blobs.length) await uploadPhotos(n,blobs);
+      await refresh();openTicket(n);toast(files.length>1?"Photos ajoutées.":"Photo ajoutée.");}
+    catch(err){lab.textContent="Ajouter une photo";fail(err,"Photo non ajoutée");}});
   $("#dSt")&&$("#dSt").querySelectorAll("button").forEach(b=>b.onclick=async()=>{
     const {error}=await sb.from("tickets").update({status:b.dataset.s}).eq("num",n);if(error){fail(error,"Statut non modifié");return;}
     await refresh();renderAll();openTicket(n);toast(`Statut : ${STAT[b.dataset.s]}.`);});
@@ -1077,11 +1171,11 @@ function openPrivacy(){
   openSheet(head("Données personnelles","Information des utilisateurs de l'application.")+`
    <div class="legal">
     <h3>Qui est responsable ?</h3><p>Le syndicat des copropriétaires de la résidence Les Caméliats, représenté par son Conseil syndical. Contact : ${c}.</p>
-    <h3>Quelles données ?</h3><ul><li>Votre adresse e-mail, votre nom, votre qualité (copropriétaire, locataire…), votre cage, votre étage et votre logement.</li><li>Les signalements que vous déclarez : lieu, titre, description, date et nom de l'auteur.</li></ul>
+    <h3>Quelles données ?</h3><ul><li>Votre adresse e-mail, votre nom, votre qualité (copropriétaire, locataire…), votre cage, votre étage et votre logement.</li><li>Les signalements que vous déclarez : lieu, titre, description, date, nom de l'auteur et photos jointes.</li></ul>
     <h3>Pour quoi faire ?</h3><p>Uniquement pour signaler et suivre les problèmes techniques de l'immeuble. Aucune publicité, aucune revente, aucun outil de mesure d'audience. Ce traitement repose sur l'intérêt légitime de la copropriété à entretenir l'immeuble.</p>
     <h3>Qui y a accès ?</h3><ul><li>Le Conseil syndical et le syndic voient tous les signalements, le nom de leur auteur et la liste des comptes.</li><li>Un résident voit tous les signalements de la résidence, sans le nom de leur auteur (sauf les siens). Pour un incident dans le logement d'un autre résident, il voit seulement la catégorie, la gravité, le statut, la date et l'étage.</li><li>Un prestataire ne voit que les signalements de sa spécialité.</li><li>Un compte en attente de validation ne voit aucun signalement.</li></ul>
-    <h3>Où sont-elles conservées ?</h3><p>Dans une base de données hébergée par Supabase, dans l'Union européenne. Les pages de l'application sont servies par GitHub Pages, qui ne reçoit aucune de ces données. L'envoi des e-mails de connexion est assuré par Brevo, société française. Si vous choisissez « Continuer avec Google », Google transmet à l'application votre adresse e-mail et votre nom pour vous identifier ; sinon, Google n'intervient pas. Un jeton de session est gardé dans ce navigateur pour vous éviter de vous reconnecter.</p>
-    <h3>Combien de temps ?</h3><p>Un signalement supprimé est placé dans une corbeille que seul le Conseil syndical peut consulter ; il y reste jusqu'à sa suppression définitive par le Conseil syndical. Un journal des modifications (date, auteur de l'action, numéro du signalement) est tenu et n'est visible que du Conseil syndical. Votre compte est supprimé à votre demande ou à votre départ de la résidence. Les signalements sont conservés le temps utile au suivi technique de l'immeuble, puis supprimés par le Conseil syndical.</p>
+    <h3>Où sont-elles conservées ?</h3><p>Dans une base de données hébergée par Supabase, dans l'Union européenne. Les plans et les photos sont rangés dans un espace de stockage privé du même hébergeur : ils ne sont servis qu'aux personnes autorisées à voir le signalement, par des liens valables une heure. Les pages de l'application sont servies par GitHub Pages, qui ne reçoit aucune de ces données. L'envoi des e-mails de connexion est assuré par Brevo, société française. Si vous choisissez « Continuer avec Google », Google transmet à l'application votre adresse e-mail et votre nom pour vous identifier ; sinon, Google n'intervient pas. Un jeton de session est gardé dans ce navigateur pour vous éviter de vous reconnecter.</p>
+    <h3>Combien de temps ?</h3><p>Un signalement supprimé est placé dans une corbeille que seul le Conseil syndical peut consulter ; il y reste jusqu'à sa suppression définitive par le Conseil syndical, qui efface en même temps ses photos. L'auteur d'un signalement peut retirer lui-même une photo qu'il a jointe. Un journal des modifications (date, auteur de l'action, numéro du signalement) est tenu et n'est visible que du Conseil syndical. Votre compte est supprimé à votre demande ou à votre départ de la résidence. Les signalements sont conservés le temps utile au suivi technique de l'immeuble, puis supprimés par le Conseil syndical.</p>
     <h3>Vos droits</h3><p>Vous pouvez demander l'accès à vos données, leur rectification ou leur effacement en vous adressant à ${c}. Vous pouvez aussi saisir la CNIL (cnil.fr).</p>
    </div>
    <div class="foot"><button class="btn" data-close>Fermer</button></div>`,true);
@@ -1116,7 +1210,10 @@ async function openHistory(tab){
     await refresh();renderAll();openHistory("trash");toast(`Signalement #${b.dataset.restore} restauré.`);});
   $("#layer").querySelectorAll("[data-purge]").forEach(b=>b.onclick=async()=>{
     if(!b.dataset.sure){b.dataset.sure="1";b.textContent="Confirmer : suppression irréversible";return;}
-    const {error}=await sb.from("tickets").delete().eq("num",Number(b.dataset.purge));
+    const num=Number(b.dataset.purge);
+    const {data:objs}=await sb.storage.from("photos").list(String(num));
+    if(objs&&objs.length) await sb.storage.from("photos").remove(objs.map(o=>`${num}/${o.name}`));
+    const {error}=await sb.from("tickets").delete().eq("num",num);
     if(error){fail(error,"Suppression impossible");return;}
     openHistory("trash");toast(`Signalement #${b.dataset.purge} supprimé définitivement.`);});
 }
