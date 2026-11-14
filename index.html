@@ -458,9 +458,8 @@ async function refresh(){
   if(t.error) return fail(t.error,"Chargement impossible");
   S.tickets=t.data.map(rowToT);S.hidden=0;
   if(S.me.role==="cs_admin"){
-    const [p,s]=await Promise.all([sb.from("profiles").select("*").order("requested_at"),sb.from("settings").select("invite_code").maybeSingle()]);
+    const p=await sb.from("profiles").select("*").order("requested_at");
     if(!p.error) S.users=p.data.map(rowToU);
-    if(!s.error&&s.data) S.inviteCode=s.data.invite_code;
   } else {S.users=[];S.inviteCode="";}
   return true;
 }
@@ -670,7 +669,7 @@ function tutoSteps(u){
     {t:"Exporter",art:mock("Export CSV","Imprimer"),p:"<b>Export CSV</b> donne un fichier pour Excel. <b>Imprimer</b> prépare une version papier, utile en réunion."}];
   const cs=[
     {t:`Bienvenue${first?", "+first:""}`,art:mock("Comptes","Incidents","Suivi"),p:u.isAdmin?"Vous êtes <b>administrateur</b> : membre du Conseil syndical, avec des outils en plus que vous êtes seul à voir.":"Vous êtes membre du <b>Conseil syndical</b> : vous validez les comptes des voisins et vous suivez les incidents."},
-    {t:"Valider les voisins",art:mock("Administration <span class=\"pill reported\">2</span>"),p:"Un chiffre rouge sur <b>Administration</b> signale des demandes en attente. Vérifiez le nom et le logement, puis choisissez le rôle (le plus souvent <b>Résident</b>) ou refusez. C'est aussi là que se trouve le <b>code d'invitation</b>."},
+    {t:"Valider les voisins",art:mock("Administration <span class=\"pill reported\">2</span>"),p:"Un chiffre rouge sur <b>Administration</b> signale des demandes en attente. Vérifiez le nom et le logement, puis choisissez le rôle (le plus souvent <b>Résident</b>) ou refusez. Il n'y a plus de code d'invitation : <b>refusez toute demande que vous ne reconnaissez pas</b>."},
     plan,
     {t:"Traiter un incident",art:mock("Statut","Ordre de service","Déplacer","Supprimer"),p:"Dans la fiche : changez le <b>statut</b>, notez l'<b>ordre de service</b>, <b>déplacez</b> un incident mal placé. "+(u.isAdmin?"<b>Supprimer</b> l'envoie dans la corbeille, que vous seul pouvez ouvrir.":"<b>Supprimer</b> le retire de la liste ; l'administrateur peut le restaurer.")}];
   if(u.isAdmin) cs.push({t:"Vos outils d'administrateur",art:mock("Importer","Historique","Plans"),p:"<b>Importer</b> récupère les incidents d'une discussion WhatsApp, sans doublons. <b>Historique</b> contient la corbeille (restaurer, supprimer pour de bon) et le journal des actions. <b>Plans</b>, dans Administration, remplace les images des étages."});
@@ -1104,7 +1103,7 @@ function showOnboarding(email){
       <div class="field"><label for="oFloor">Étage</label><select id="oFloor"><option value="">…</option>${[0,1,2,3,4,5,6].map(i=>`<option value="${i}">${floorOf(i).label}</option>`).join("")}</select></div>
     </div>
     <div class="field"><label for="oLot">Logement</label><select id="oLot"><option value="">Choisir…</option>${desigOptions("LOT").map(([n,l])=>`<option value="${n}">${l}</option>`).join("")}</select><span class="ro" id="oLotHelp">Syndic ou prestataire : laissez la cage, l'étage et le logement vides.</span></div>
-    <div class="field"><label for="oCode">Code d'invitation de la copropriété</label><input id="oCode" autocapitalize="characters" autocomplete="off" maxlength="40" placeholder="Communiqué par le Conseil syndical"></div>
+    <p class="ro">Votre demande sera validée par le Conseil syndical. En attendant, vous ne verrez aucune donnée de la résidence.</p>
     <p class="ro">En envoyant ce formulaire, vous acceptez que ces informations soient utilisées pour le suivi technique de l'immeuble, comme décrit dans la rubrique Données personnelles.</p>
     <p class="err" id="oErr" hidden></p>
     <button class="btn primary" type="submit">Envoyer ma demande</button>
@@ -1120,15 +1119,15 @@ function showOnboarding(email){
     $("#oCage").value=lotCage(n);const f=lotFloor(n);if(f!=null&&n!==1)$("#oFloor").value=String(f);};
   $("#fOn").onsubmit=async e=>{e.preventDefault();
     const err=m=>{$("#oErr").textContent=m;$("#oErr").hidden=false;};
-    const name=$("#oName").value.trim(),type=$("#oType").value,cage=$("#oCage").value,fl=$("#oFloor").value,lot=Number($("#oLot").value),code=$("#oCode").value.trim().toUpperCase();
+    const name=$("#oName").value.trim(),type=$("#oType").value,cage=$("#oCage").value,fl=$("#oFloor").value,lot=Number($("#oLot").value);
     const ext=type==="Syndic"||type==="Prestataire";
     if(!name||!type) return err("Indiquez votre nom et votre qualité.");
     if(!ext&&(!cage||fl===""||!(Number.isInteger(lot)&&lot>=1&&lot<=39))) return err("Indiquez votre cage, votre étage et votre logement.");
     const btn=e.target.querySelector("[type=submit]");btn.disabled=true;
-    const {data,error}=await sb.rpc("request_access",{p_name:name,p_type:type,p_cage:ext?null:cage,p_floor:ext?null:Number(fl),p_lot:ext?null:lot,p_code:code});
+    const {data,error}=await sb.rpc("request_access",{p_name:name,p_type:type,p_cage:ext?null:cage,p_floor:ext?null:Number(fl),p_lot:ext?null:lot,p_code:""});
     btn.disabled=false;
     if(error) return err("La demande n'a pas pu être envoyée. Vérifiez votre connexion et réessayez.");
-    if(data==="bad_code") return err("Code d'invitation incorrect. Vérifiez-le auprès du Conseil syndical.");
+    if(data==="full") return err("Trop de demandes sont en attente pour le moment. Réessayez plus tard ou écrivez au Conseil syndical.");
     if(data==="locked") return err("Trop d'essais. Réessayez dans une heure.");
     await enter();
     toast(data==="cs_admin"?"Vous êtes le premier inscrit : vous administrez l'application.":"Demande envoyée au Conseil syndical.");
@@ -1231,9 +1230,6 @@ function openAdmin(){
       ${p.role==="contractor"?`<select data-cat="${p.id}" aria-label="Spécialité de ${esc(p.name)}">${Object.keys(CATS).map(k=>`<option value="${k}" ${p.category===k?"selected":""}>${CATS[k]}</option>`).join("")}</select>`:""}
       ${p.id===me().id?`<span class="ro">Vous</span>`:`<button class="btn danger" data-rm="${p.id}">Retirer</button>`}</div>`).join("")}
    </div>
-   <div class="box"><h3>Code d'invitation de l'immeuble</h3><p class="ro">À communiquer aux résidents (affichage dans le hall, courrier). Changez-le s'il a circulé hors de la résidence.</p>
-    <div class="field"><label for="aCode">Code actuel</label><input id="aCode" class="mono" maxlength="40" value="${esc(S.inviteCode)}"></div>
-    <div><button class="btn" id="aCodeSave">Enregistrer le code</button></div></div>
    ${can.plans(me())?`<div class="box"><h3>Plans</h3><p class="ro">Sélectionnez d'un coup les 9 images des plans (fichiers dont le nom commence par 01 à 09). Elles sont rangées dans un espace privé, visible uniquement des utilisateurs connectés.</p>
     <div class="field"><label for="aPlans">Images des plans</label><input id="aPlans" type="file" accept="image/*" multiple></div><p class="ro" id="aPlansMsg"></p></div>`:""}`,true);
   const upd=async(id,patch,msg)=>{const {error}=await sb.from("profiles").update(patch).eq("id",id);if(error){fail(error,"Modification refusée");}else toast(msg);await refresh();renderAll();openAdmin();};
@@ -1246,9 +1242,6 @@ function openAdmin(){
   $("#layer").querySelectorAll("[data-rm]").forEach(b=>b.onclick=()=>{const p=S.users.find(x=>x.id===b.dataset.rm);if(!p)return;
     if(b.dataset.sure) return del(p,`${p.name} n'a plus accès.`);
     b.dataset.sure="1";b.textContent="Confirmer le retrait";});
-  $("#aCodeSave").onclick=async()=>{const v=$("#aCode").value.trim().toUpperCase();if(v.length<4){toast("Le code doit faire au moins 4 caractères.");return;}
-    const {error}=await sb.from("settings").update({invite_code:v}).eq("id",true);if(error){fail(error,"Code non enregistré");return;}
-    S.inviteCode=v;$("#aCode").value=v;toast("Code d'invitation mis à jour.");};
   $("#aPlans")&&($("#aPlans").onchange=async e=>{const files=[...e.target.files],msg=$("#aPlansMsg");let ok=0;const bad=[];
     for(const f of files){const m=/^0?([1-9])(?!\d)/.exec(f.name);if(!m){bad.push(f.name);continue;}
       msg.textContent=`Envoi du plan ${PLAN_NAMES[m[1]]}…`;
