@@ -1199,7 +1199,7 @@ async function openHistory(tab){
   const logHtml=log.length?log.map(l=>`<div class="req"><div><b>${LOGACT[l.action]||esc(l.action)}</b> · #${l.ticket_num}${l.ticket_title?" · "+esc(l.ticket_title):""}
       <div class="meta"><span>${fmtDT(l.at)}</span><span>${esc(l.actor_name)}</span>${logDetail(l)?`<span>${logDetail(l)}</span>`:""}</div></div></div>`).join("")
     :`<p class="ro">Aucune modification enregistrée pour l'instant.</p>`;
-  openSheet(head("Historique","Réservé au Conseil syndical.")+`
+  openSheet(head("Historique","Réservé à l'administrateur.")+`
    <div class="seg" id="hTabs" role="group" aria-label="Rubrique"><button data-t="trash" aria-pressed="${tab==="trash"}">Corbeille (${trash.length})</button><button data-t="log" aria-pressed="${tab==="log"}">Journal</button></div>
    <div class="box" id="hBody">${tab==="trash"?`<p class="ro">Un incident supprimé reste ici, avec son auteur, jusqu'à ce que vous le supprimiez définitivement. Il n'apparaît plus pour les autres utilisateurs. Les incidents résolus, eux, restent dans l'onglet « Résolus » et peuvent être rouverts.</p>`+trashHtml:`<p class="ro">Les 300 dernières actions : créations, changements de statut, ordres de service, suppressions et restaurations.</p>`+logHtml}</div>
    <div class="foot"><button class="btn" data-close>Fermer</button></div>`,true);
