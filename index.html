@@ -196,6 +196,10 @@ textarea.code{font-family:var(--f-mono);font-size:12px;min-height:170px}
 .photos .ph.wait,.photos .ph.gone{display:grid;place-items:center;text-align:center;font-size:11px;color:var(--muted);padding:4px;text-decoration:none}
 .photos .rm{position:absolute;top:3px;right:3px;width:28px;height:28px;border-radius:50%;border:0;background:rgba(10,10,20,.66);color:#fff;font-size:16px;line-height:1;cursor:pointer;padding:0}
 .phadd{min-height:44px;justify-content:center;width:max-content}
+.guide-scrim{justify-content:center;align-items:stretch;padding:0}
+.guide-pane{background:var(--surface);width:min(900px,100%);height:100%;display:flex;flex-direction:column}
+.guide-bar{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:10px max(14px,env(safe-area-inset-right,0px)) 10px max(14px,env(safe-area-inset-left,0px));padding-top:calc(10px + env(safe-area-inset-top,0px));border-bottom:1px solid var(--line)}
+.guide-frame{flex:1;width:100%;border:0;background:#fff}
 .mbar{display:none}
 .btn.big{min-height:54px;font-size:16px;font-weight:700;justify-content:center;border-radius:12px}
 .pgrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
@@ -645,6 +649,39 @@ function closeSheet(){$("#layer").innerHTML="";if(UI.temp){UI.temp=null;renderPi
 document.addEventListener("keydown",e=>{if(e.key==="Escape"&&$("#scrim"))closeSheet();});
 const head=(t,p)=>`<div class="sheet-head"><div><h2>${t}</h2>${p?`<p>${p}</p>`:""}</div><button class="x" data-close aria-label="Fermer">×</button></div>`;
 
+/* ---------- Aide : tutoriel et guides illustrés (rangés dans l'espace privé des plans) ---------- */
+const GUIDES={residents:{path:"guides/residents.html",label:"Guide résident"},conseil:{path:"guides/conseil.html",label:"Guide du Conseil syndical"}};
+const GUIDE_CACHE={};
+function openHelp(){
+  const u=me();if(!u||u.role==="pending")return;
+  const staff=u.role==="cs_admin"||u.role==="syndic";
+  openSheet(head("Aide","Pour bien utiliser l'application")+`
+   <div class="pgrid" style="grid-template-columns:minmax(0,1fr)">
+    <button type="button" class="pcard" id="hTuto">Revoir le tutoriel<small>Les écrans de bienvenue, en une minute</small></button>
+    <button type="button" class="pcard" data-g="residents">Guide illustré du résident<small>Se connecter, voir et signaler un incident</small></button>
+    ${staff?`<button type="button" class="pcard" data-g="conseil">Guide du Conseil syndical<small>Comptes, traitement, photos, import, corbeille</small></button>`:""}
+   </div>
+   <p class="ro">Une question ? Écrivez à ${esc(CFG.contact||"contact@lescameliats.fr")}.</p>
+   <div class="foot"><button class="btn" data-close>Fermer</button></div>`);
+  $("#hTuto").onclick=()=>{closeSheet();openTuto();};
+  $("#layer").querySelectorAll("[data-g]").forEach(b=>b.onclick=()=>openGuide(b.dataset.g,b));
+}
+async function openGuide(k,btn){
+  let html=GUIDE_CACHE[k];
+  if(!html){btn&&(btn.disabled=true);
+    const {data,error}=await sb.storage.from("plans").download(GUIDES[k].path);
+    btn&&(btn.disabled=false);
+    if(error||!data){toast("Ce guide n'est pas encore disponible.");return;}
+    html=GUIDE_CACHE[k]=await data.text();}
+  const doc=/<html[\s>]/i.test(html)?html:`<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head><body>${html}</body></html>`;
+  $("#layer").innerHTML=`<div class="scrim guide-scrim" id="scrim"><div class="guide-pane" role="dialog" aria-modal="true" aria-label="${esc(GUIDES[k].label)}">
+    <div class="guide-bar"><b>${esc(GUIDES[k].label)}</b><button type="button" class="btn" data-close>Fermer</button></div>
+    <iframe class="guide-frame" sandbox="allow-popups" referrerpolicy="no-referrer" title="${esc(GUIDES[k].label)}"></iframe></div></div>`;
+  $(".guide-frame").srcdoc=doc;
+  $("#layer").querySelector("[data-close]").onclick=closeSheet;
+  $("#scrim").onclick=e=>{if(e.target.id==="scrim")closeSheet();};
+}
+
 /* ---------- Tutoriel de première connexion (adapté au profil) ---------- */
 const TUTO_V="1";
 const tutoKey=u=>`cameliats:tuto:${TUTO_V}:${u.id}:${u.isAdmin?"admin":u.role}`;
@@ -688,7 +725,7 @@ function openTuto(){
       <div class="tuto-dots" aria-hidden="true">${steps.map((_,k)=>`<i class="${k===i?"on":""}"></i>`).join("")}</div>
       <div class="foot">${last?`<span></span>`:`<button class="lnk" type="button" id="tSkip">Passer</button>`}
         <span style="display:flex;gap:8px">${i?`<button class="btn" type="button" id="tPrev">Précédent</button>`:""}<button class="btn primary" type="button" id="tNext">${last?"C'est parti":"Suivant"}</button></span></div>
-      ${last?`<p class="ro" style="text-align:center">Pour revoir ce tutoriel : lien <b>Aide</b>, en bas à droite.</p>`:""}</div></div>`;
+      ${last?`<p class="ro" style="text-align:center">Pour revoir ce tutoriel ou lire le guide illustré : lien <b>Aide</b>, en bas de page.</p>`:""}</div></div>`;
     $("#tNext").onclick=()=>{if(last)closeSheet();else{i++;draw();}};
     $("#tPrev")&&($("#tPrev").onclick=()=>{i--;draw();});
     $("#tSkip")&&($("#tSkip").onclick=closeSheet);
@@ -1152,7 +1189,7 @@ async function enter(){
   } finally {entering=false;}
 }
 function boot(){
-  $("#rgpdFab").onclick=openPrivacy;$("#helpFab").onclick=()=>openTuto();
+  $("#rgpdFab").onclick=openPrivacy;$("#helpFab").onclick=()=>openHelp();
   if(!sb){gate(`<h2>Configuration manquante</h2><p>Le fichier <span class="mono">config.js</span> doit contenir l'adresse du projet Supabase et sa clé publique.</p>`);return;}
   const herr=/error_description=([^&]+)/.exec(location.hash||"");
   sb.auth.onAuthStateChange(ev=>{
@@ -1232,7 +1269,9 @@ function openAdmin(){
       ${p.id===me().id?`<span class="ro">Vous</span>`:`<button class="btn danger" data-rm="${p.id}">Retirer</button>`}</div>`).join("")}
    </div>
    ${can.plans(me())?`<div class="box"><h3>Plans</h3><p class="ro">Sélectionnez d'un coup les 9 images des plans (fichiers dont le nom commence par 01 à 09). Elles sont rangées dans un espace privé, visible uniquement des utilisateurs connectés.</p>
-    <div class="field"><label for="aPlans">Images des plans</label><input id="aPlans" type="file" accept="image/*" multiple></div><p class="ro" id="aPlansMsg"></p></div>`:""}`,true);
+    <div class="field"><label for="aPlans">Images des plans</label><input id="aPlans" type="file" accept="image/*" multiple></div><p class="ro" id="aPlansMsg"></p></div>
+   <div class="box"><h3>Guides illustrés</h3><p class="ro">Déposez les fichiers <b>guide_residents.html</b> et <b>guide_conseil.html</b>. Ils sont rangés avec les plans, dans l'espace privé : seuls les comptes validés peuvent les ouvrir, depuis le lien Aide. Redéposez un fichier pour le mettre à jour.</p>
+    <div class="field"><label for="aGuides">Fichiers des guides</label><input id="aGuides" type="file" accept=".html,text/html" multiple></div><p class="ro" id="aGuidesMsg"></p></div>`:""}`,true);
   const upd=async(id,patch,msg)=>{const {error}=await sb.from("profiles").update(patch).eq("id",id);if(error){fail(error,"Modification refusée");}else toast(msg);await refresh();renderAll();openAdmin();};
   const del=async(p,msg)=>{const {error}=await sb.from("profiles").delete().eq("id",p.id);if(error){fail(error,"Suppression refusée");}else toast(msg);await refresh();renderAll();openAdmin();};
   $("#layer").querySelectorAll("[data-a]").forEach(b=>b.onclick=()=>{const p=S.users.find(x=>x.id===b.dataset.u);if(!p)return;
@@ -1250,6 +1289,13 @@ function openAdmin(){
       if(error){console.error(error);bad.push(f.name);}else ok++;}
     for(const k in imgs) delete imgs[k];for(const k in orig) delete orig[k];for(const k in variants) delete variants[k];
     msg.textContent=`${ok} plan${ok>1?"s":""} enregistré${ok>1?"s":""}.`+(bad.length?` Non pris en compte : ${bad.join(", ")}.`:"");drawPlan();});
+  $("#aGuides")&&($("#aGuides").onchange=async e=>{const files=[...e.target.files],msg=$("#aGuidesMsg"),ok=[],bad=[];
+    for(const f of files){const k=/conseil/i.test(f.name)?"conseil":/r[ée]sident/i.test(f.name)?"residents":null;
+      if(!k||f.size>15*1024*1024){bad.push(f.name);continue;}
+      msg.textContent=`Envoi du guide ${GUIDES[k].label.toLowerCase()}…`;
+      const {error}=await sb.storage.from("plans").upload(GUIDES[k].path,f,{upsert:true,contentType:"text/html;charset=utf-8",cacheControl:"60"});
+      if(error){console.error(error);bad.push(f.name);}else{ok.push(GUIDES[k].label);delete GUIDE_CACHE[k];}}
+    msg.textContent=(ok.length?`Enregistré : ${ok.join(", ")}.`:"Aucun guide enregistré.")+(bad.length?` Non pris en compte : ${bad.join(", ")} (le nom doit contenir « residents » ou « conseil »).`:"");});
 }
 
 /* ---------- Ingestion WhatsApp & JSON IA (RG-ING) ---------- */

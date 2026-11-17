@@ -132,3 +132,10 @@ Patch : `supabase/patches/2026-11-14_photos.sql` (inclus dans `schema.sql`). Tes
 Patch : `supabase/patches/2026-11-14_sans_code_invitation.sql` (inclus dans `schema.sql`).
 Toute personne connectée (e-mail vérifié ou Google) peut déposer une demande d'accès ; elle reste « en attente », sans rien voir,
 jusqu'à validation par le Conseil syndical. Garde-fou : 40 demandes en attente au maximum. La table `settings` reste en place mais ne sert plus.
+
+## Guides illustrés dans l'application (17/11/2026)
+
+Le lien **Aide** ouvre un menu : revoir le tutoriel, guide résident (tous les comptes validés), guide du Conseil syndical
+(Conseil syndical et syndic). Les guides sont des fichiers HTML rangés dans l'espace privé `plans` (`guides/residents.html`,
+`guides/conseil.html`) : ils montrent les plans de l'immeuble, donc ils ne sont jamais publiés sur le site public.
+L'administrateur les dépose dans *Administration > Guides illustrés* ; ils s'affichent dans un cadre isolé (iframe `sandbox`, sans script).
