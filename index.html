@@ -4,6 +4,13 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="robots" content="noindex,nofollow">
+<meta name="theme-color" content="#4F46E5">
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-title" content="Camélias">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
 <title>Les Camélias – Suivi technique</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;700;800&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@500&display=swap">
@@ -200,6 +207,7 @@ textarea.code{font-family:var(--f-mono);font-size:12px;min-height:170px}
 .guide-pane{background:var(--surface);width:min(900px,100%);height:100%;display:flex;flex-direction:column}
 .guide-bar{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:10px max(14px,env(safe-area-inset-right,0px)) 10px max(14px,env(safe-area-inset-left,0px));padding-top:calc(10px + env(safe-area-inset-top,0px));border-bottom:1px solid var(--line)}
 .guide-frame{flex:1;width:100%;border:0;background:#fff}
+.steps{margin:6px 0;padding-left:1.3em;display:flex;flex-direction:column;gap:4px}
 .mbar{display:none}
 .btn.big{min-height:54px;font-size:16px;font-weight:700;justify-content:center;border-radius:12px}
 .pgrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
@@ -477,6 +485,7 @@ const can={
  os:u=>u.role==="cs_admin"||u.role==="syndic",
  del:u=>u.role==="cs_admin",
  admin:u=>u.role==="cs_admin",
+ notify:u=>u.role==="cs_admin"||u.role==="syndic",
  ingest:u=>u.isAdmin===true,
  trash:u=>u.isAdmin===true,
  plans:u=>u.isAdmin===true,
@@ -572,8 +581,10 @@ function renderHeader(){
   if(can.export(u)) h+=`<button class="btn" id="aPrint">Imprimer</button>`;
   if(can.admin(u)) h+=`<button class="btn" id="aAdm">Administration${pend?`<span class="badge" aria-label="${pend} demandes">${pend}</span>`:""}</button>`;
   if(can.trash(u)) h+=`<button class="btn" id="aHist">Historique</button>`;
+  if(can.notify(u)) h+=`<button class="btn" id="aNotif" aria-label="Notifications" title="Notifications" style="padding-inline:11px"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-4px"><path d="M6 8a6 6 0 1 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg></button>`;
   h+=`<button class="btn ghost" id="aOut">Déconnexion</button>`;
   $("#actions").innerHTML=h;
+  $("#aNotif")&&($("#aNotif").onclick=()=>openNotif());
   $("#aNew")&&($("#aNew").onclick=()=>openReport());
   $("#mNew").hidden=!can.declare(u);$("#mNew").onclick=()=>openReport();
   $("#aImp")&&($("#aImp").onclick=openImport);
@@ -649,6 +660,99 @@ function closeSheet(){$("#layer").innerHTML="";if(UI.temp){UI.temp=null;renderPi
 document.addEventListener("keydown",e=>{if(e.key==="Escape"&&$("#scrim"))closeSheet();});
 const head=(t,p)=>`<div class="sheet-head"><div><h2>${t}</h2>${p?`<p>${p}</p>`:""}</div><button class="x" data-close aria-label="Fermer">×</button></div>`;
 
+/* ---------- Notifications sur téléphone (Web Push) ---------- */
+const isIOS=()=>/iP(hone|ad|od)/.test(navigator.userAgent)||(navigator.platform==="MacIntel"&&navigator.maxTouchPoints>1);
+const isStandalone=()=>window.matchMedia("(display-mode: standalone)").matches||navigator.standalone===true;
+const pushSupported=()=>"serviceWorker" in navigator&&"PushManager" in window&&"Notification" in window;
+const b64uToBytes=t=>{const s=atob(t.replace(/-/g,"+").replace(/_/g,"/")+"===".slice((t.length+3)%4));return Uint8Array.from(s,c=>c.charCodeAt(0));};
+function deviceName(){const a=navigator.userAgent;
+  const os=/iPhone/.test(a)?"iPhone":/iPad/.test(a)||isIOS()?"iPad":/Android/.test(a)?"Android":/Mac/.test(a)?"Mac":/Windows/.test(a)?"Windows":"Linux";
+  const br=/Edg\//.test(a)?"Edge":/Firefox\//.test(a)?"Firefox":/Chrome\//.test(a)?"Chrome":/Safari\//.test(a)?"Safari":"navigateur";
+  return `${os} · ${br}`;}
+async function pushState(){
+  if(!pushSupported()) return {state:isIOS()&&!isStandalone()?"ios-install":"unsupported"};
+  if(isIOS()&&!isStandalone()) return {state:"ios-install"};
+  if(Notification.permission==="denied") return {state:"denied"};
+  const reg=await navigator.serviceWorker.getRegistration("/");
+  const sub=reg&&await reg.pushManager.getSubscription();
+  if(!sub) return {state:"off"};
+  const {data}=await sb.rpc("push_is_registered",{p_endpoint:sub.endpoint});
+  return {state:data?"on":"off",sub};
+}
+async function enablePush(){
+  const perm=await Notification.requestPermission();      // d'abord, tant que le geste de l'utilisateur est valable
+  if(perm!=="granted") throw new Error(perm==="denied"?"Les notifications ont été refusées pour ce site.":"Autorisation non accordée.");
+  const reg=await navigator.serviceWorker.register("/sw.js",{scope:"/"});
+  await navigator.serviceWorker.ready;
+  let key=(await sb.rpc("push_public_key")).data;
+  if(!key){const {data,error}=await sb.functions.invoke("notify",{body:{action:"init"}});
+    if(error||!data||!data.publicKey) throw new Error("La fonction « notify » ne répond pas. Elle n'est peut-être pas encore installée dans Supabase.");
+    key=data.publicKey;}
+  let sub=await reg.pushManager.getSubscription();
+  if(sub&&sub.options&&sub.options.applicationServerKey){
+    const cur=new Uint8Array(sub.options.applicationServerKey),want=b64uToBytes(key);
+    if(cur.length!==want.length||cur.some((v,i)=>v!==want[i])){await sub.unsubscribe();sub=null;}}
+  if(!sub) sub=await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:b64uToBytes(key)});
+  const j=sub.toJSON();
+  const {error}=await sb.rpc("push_subscribe",{p_endpoint:j.endpoint,p_p256dh:j.keys.p256dh,p_auth:j.keys.auth,p_device:deviceName()});
+  if(error) throw error;
+}
+async function disablePush(sub){
+  if(!sub){const reg=await navigator.serviceWorker.getRegistration("/");sub=reg&&await reg.pushManager.getSubscription();}
+  if(sub){await sb.rpc("push_unsubscribe",{p_endpoint:sub.endpoint});await sub.unsubscribe();}
+}
+async function openNotif(){
+  const u=me();if(!can.notify(u))return;
+  openSheet(head("Notifications","Être prévenu sur ce téléphone ou cet ordinateur")+`<div id="nBody"><p class="ro">Vérification…</p></div><div class="foot"><button class="btn" data-close>Fermer</button></div>`);
+  const draw=async()=>{const box=$("#nBody");if(!box)return;
+    let st;try{st=await pushState();}catch(e){st={state:"unsupported"};}
+    const prefs=(await sb.rpc("get_notify_prefs")).data||{new_ticket:true,urgent:true,access:true,status:true};
+    const ev=[["new_ticket","Nouveau signalement","Créé par un voisin, le syndic ou un membre du conseil (pas les imports)."],
+      ["urgent","Signalement urgent","Même si « Nouveau signalement » est décoché."],
+      ...(u.role==="cs_admin"?[["access","Nouvelle demande d'accès","Quelqu'un attend votre validation."]]:[]),
+      ["status","Changement de statut","Un incident passe En cours, Résolu ou Signalé."]];
+    let top="";
+    if(st.state==="ios-install") top=`<div class="box"><h3>Sur iPhone, une étape de plus</h3>
+      <p>Apple n'envoie de notifications qu'aux applications posées sur l'écran d'accueil :</p>
+      <ol class="steps"><li>Dans Safari, touchez le bouton <b>Partager</b> (carré avec une flèche vers le haut).</li><li>Choisissez <b>Sur l'écran d'accueil</b>, puis <b>Ajouter</b>.</li><li>Ouvrez <b>Camélias</b> depuis la nouvelle icône et connectez-vous avec Google ou avec le <b>code reçu par e-mail</b>.</li><li>Revenez ici et touchez <b>Activer</b>.</li></ol>
+      <p class="ro">Il faut iOS 16.4 ou plus récent.</p></div>`;
+    else if(st.state==="unsupported") top=`<div class="box"><p>Ce navigateur ne permet pas les notifications. Essayez Chrome, Edge, Firefox ou Safari, à jour.</p></div>`;
+    else if(st.state==="denied") top=`<div class="box"><p>Les notifications sont <b>bloquées</b> pour ce site sur cet appareil.</p><p class="ro">Pour les autoriser : réglages du navigateur (ou du téléphone) &gt; Notifications &gt; lescameliats.fr, puis revenez ici.</p></div>`;
+    else top=`<div class="box"><h3>Cet appareil</h3>
+      <p>${st.state==="on"?`<span class="pill resolved">Activées</span> ${esc(deviceName())}`:`<span class="pill reported">Désactivées</span> sur cet appareil.`}</p>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">${st.state==="on"?`<button type="button" class="btn" id="nTest">Envoyer un essai</button><button type="button" class="btn" id="nOff">Désactiver</button>`:`<button type="button" class="btn primary" id="nOn">Activer sur cet appareil</button>`}</div>
+      <p class="ro" id="nMsg"></p></div>`;
+    box.innerHTML=top+`<div class="box"><h3>Me prévenir pour</h3>
+      ${ev.map(([k,l,d])=>`<label class="urgent" style="background:none;color:inherit;padding:0;align-items:flex-start"><input type="checkbox" data-k="${k}" ${prefs[k]?"checked":""}><span>${l}<br><small class="ro">${d}</small></span></label>`).join("")}
+      <p class="ro">Vous n'êtes jamais prévenu de vos propres actions. Ces choix valent pour tous vos appareils.</p></div>
+      <p class="ro">Le contenu des notifications est chiffré jusqu'à votre appareil ; il transite par le service de notification de son fabricant (Apple, Google ou Mozilla), qui ne peut pas le lire.</p>`;
+    box.querySelectorAll("input[data-k]").forEach(c=>c.onchange=async()=>{
+      const v=k=>{const el=box.querySelector(`input[data-k="${k}"]`);return el?el.checked:!!prefs[k];};
+      const {error}=await sb.rpc("set_notify_prefs",{p_new:v("new_ticket"),p_urgent:v("urgent"),p_access:v("access"),p_status:v("status")});
+      if(error){fail(error,"Préférence non enregistrée");c.checked=!c.checked;}else{prefs[c.dataset.k]=c.checked;toast("Préférence enregistrée.");}});
+    const msg=t=>{const m=$("#nMsg");if(m)m.textContent=t;};
+    $("#nOn")&&($("#nOn").onclick=async e=>{e.target.disabled=true;msg("Activation…");
+      try{await enablePush();toast("Notifications activées.");draw();}catch(err){e.target.disabled=false;msg(err.message||String(err));}});
+    $("#nOff")&&($("#nOff").onclick=async e=>{e.target.disabled=true;try{await disablePush(st.sub);toast("Notifications désactivées sur cet appareil.");}catch(err){fail(err,"Désactivation impossible");}draw();});
+    $("#nTest")&&($("#nTest").onclick=async e=>{e.target.disabled=true;msg("Envoi…");
+      const {data,error}=await sb.functions.invoke("notify",{body:{action:"test"}});e.target.disabled=false;
+      msg(error?"L'essai n'a pas pu partir : la fonction « notify » ne répond pas.":(data&&data.sent&&data.sent.includes("ok"))?"Essai envoyé : la notification doit apparaître dans quelques secondes.":"Aucun appareil n'a reçu l'essai. Désactivez puis réactivez.");});
+  };
+  draw();
+}
+/* Ouvrir ce que désigne l'adresse : #t12 (un signalement), #admin (les demandes d'accès) */
+function routeHash(){
+  const h=location.hash,u=me();if(!u||u.role==="pending")return false;
+  let done=false;
+  if(/^#t\d+$/.test(h)){const n=+h.slice(2);if(S.tickets.some(t=>t.num===n)){openTicket(n);done=true;}else toast("Ce signalement n'est plus visible.");}
+  else if(h==="#admin"&&can.admin(u)){openAdmin();done=true;}
+  if(h) history.replaceState(null,"",location.pathname+location.search);
+  return done;
+}
+window.addEventListener("hashchange",()=>routeHash());
+if("serviceWorker" in navigator) navigator.serviceWorker.addEventListener("message",e=>{
+  if(e.data&&e.data.type==="open"){const h=new URL(e.data.url,location.href).hash;if(h){refresh().then(()=>{renderAll();location.hash=h;});}}});
+
 /* ---------- Aide : tutoriel et guides illustrés (rangés dans l'espace privé des plans) ---------- */
 const GUIDES={residents:{path:"guides/residents.html",label:"Guide résident"},conseil:{path:"guides/conseil.html",label:"Guide du Conseil syndical"}};
 const GUIDE_CACHE={};
@@ -661,9 +765,11 @@ function openHelp(){
     <button type="button" class="pcard" data-g="residents">Guide illustré du résident<small>Se connecter, voir et signaler un incident</small></button>
     ${staff?`<button type="button" class="pcard" data-g="conseil">Guide du Conseil syndical<small>Comptes, traitement, photos, import, corbeille</small></button>`:""}
    </div>
+   ${can.notify(u)?`<button type="button" class="pcard" id="hNotif" style="width:100%">Notifications sur ce téléphone<small>Être prévenu des nouveaux signalements et demandes d'accès</small></button>`:""}
    <p class="ro">Une question ? Écrivez à ${esc(CFG.contact||"contact@lescameliats.fr")}.</p>
    <div class="foot"><button class="btn" data-close>Fermer</button></div>`);
   $("#hTuto").onclick=()=>{closeSheet();openTuto();};
+  $("#hNotif")&&($("#hNotif").onclick=()=>openNotif());
   $("#layer").querySelectorAll("[data-g]").forEach(b=>b.onclick=()=>openGuide(b.dataset.g,b));
 }
 async function openGuide(k,btn){
@@ -1184,7 +1290,7 @@ async function enter(){
     if(!p){S.me=null;showOnboarding(session.user.email);return;}
     const first=!S.me,prevRole=S.me&&S.me.role;S.me=rowToU(p);
     if(first&&(S.me.role==="resident"||S.me.role==="pending")&&S.me.floor!=null) UI.floor=S.me.floor;
-    await refresh();ungate();renderAll();maybeTuto();
+    await refresh();ungate();renderAll();if(!routeHash())maybeTuto();
     if(!first&&prevRole==="pending"&&S.me.role!=="pending") toast("Votre accès a été validé par le Conseil syndical.");
   } finally {entering=false;}
 }
@@ -1211,6 +1317,7 @@ function openPrivacy(){
     <h3>Quelles données ?</h3><ul><li>Votre adresse e-mail, votre nom, votre qualité (copropriétaire, locataire…), votre cage, votre étage et votre logement.</li><li>Les signalements que vous déclarez : lieu, titre, description, date, nom de l'auteur et photos jointes.</li></ul>
     <h3>Pour quoi faire ?</h3><p>Uniquement pour signaler et suivre les problèmes techniques de l'immeuble. Aucune publicité, aucune revente, aucun outil de mesure d'audience. Ce traitement repose sur l'intérêt légitime de la copropriété à entretenir l'immeuble.</p>
     <h3>Qui y a accès ?</h3><ul><li>Le Conseil syndical et le syndic voient tous les signalements, le nom de leur auteur et la liste des comptes.</li><li>Un résident voit tous les signalements de la résidence, sans le nom de leur auteur (sauf les siens). Pour un incident dans le logement d'un autre résident, il voit seulement la catégorie, la gravité, le statut, la date et l'étage.</li><li>Un prestataire ne voit que les signalements de sa spécialité.</li><li>Un compte en attente de validation ne voit aucun signalement.</li></ul>
+    <h3>Notifications</h3><p>Si un membre du Conseil syndical ou le syndic active les notifications, l'adresse technique de son appareil est conservée pour les lui envoyer, jusqu'à ce qu'il les désactive ou retire son compte. Les notifications ne citent jamais le nom de l'auteur d'un signalement ; leur contenu est chiffré jusqu'à l'appareil.</p>
     <h3>Où sont-elles conservées ?</h3><p>Dans une base de données hébergée par Supabase, dans l'Union européenne. Les plans et les photos sont rangés dans un espace de stockage privé du même hébergeur : ils ne sont servis qu'aux personnes autorisées à voir le signalement, par des liens valables une heure. Les pages de l'application sont servies par GitHub Pages, qui ne reçoit aucune de ces données. L'envoi des e-mails de connexion est assuré par Brevo, société française. Si vous choisissez « Continuer avec Google », Google transmet à l'application votre adresse e-mail et votre nom pour vous identifier ; sinon, Google n'intervient pas. Un jeton de session est gardé dans ce navigateur pour vous éviter de vous reconnecter.</p>
     <h3>Combien de temps ?</h3><p>Un signalement supprimé est placé dans une corbeille que seul le Conseil syndical peut consulter ; il y reste jusqu'à sa suppression définitive par le Conseil syndical, qui efface en même temps ses photos. L'auteur d'un signalement peut retirer lui-même une photo qu'il a jointe. Un journal des modifications (date, auteur de l'action, numéro du signalement) est tenu et n'est visible que du Conseil syndical. Votre compte est supprimé à votre demande ou à votre départ de la résidence. Les signalements sont conservés le temps utile au suivi technique de l'immeuble, puis supprimés par le Conseil syndical.</p>
     <h3>Vos droits</h3><p>Vous pouvez demander l'accès à vos données, leur rectification ou leur effacement en vous adressant à ${c}. Vous pouvez aussi saisir la CNIL (cnil.fr).</p>
