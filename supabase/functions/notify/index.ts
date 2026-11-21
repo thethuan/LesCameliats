@@ -1,5 +1,5 @@
 // =====================================================================
-// Les Caméliats : envoi des notifications sur téléphone (Web Push).
+// Les Camélias : envoi des notifications sur téléphone (Web Push).
 // Fonction Supabase « notify ». À coller dans Supabase > Edge Functions >
 // Deploy a new function > Via Editor, sous le nom « notify », puis Deploy.
 //
@@ -130,7 +130,7 @@ function messageFor(event, d) {
   if (event === "new") return { title: `Nouveau signalement ${n}`, body: `${d.title} · ${d.location}`, url: `${SITE}#t${d.num}`, tag: `t${d.num}` };
   if (event === "status") return { title: `${n} : ${STATUS[d.status] || d.status}`, body: d.title, url: `${SITE}#t${d.num}`, tag: `t${d.num}` };
   if (event === "access") return { title: "Nouvelle demande d'accès", body: `${d.name} attend votre validation.`, url: `${SITE}#admin`, tag: "access" };
-  return { title: "Les Caméliats", body: "Les notifications fonctionnent sur cet appareil.", url: SITE, tag: "test" };
+  return { title: "Les Camélias", body: "Les notifications fonctionnent sur cet appareil.", url: SITE, tag: "test" };
 }
 
 async function sendAll(targets, message, urgent) {

@@ -1,5 +1,5 @@
 -- =====================================================================
--- Les Caméliats – Suivi technique : schéma de la base Supabase
+-- Les Camélias – Suivi technique : schéma de la base Supabase
 -- À coller UNE SEULE FOIS dans Supabase > SQL Editor > New query > Run.
 -- Les droits (RG-SEC-02 / RG-SEC-03) sont appliqués ici, côté serveur :
 -- un navigateur ne reçoit jamais un signalement qu'il n'a pas le droit de voir.

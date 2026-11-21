@@ -1,6 +1,6 @@
-# Les Caméliats – Suivi technique
+# Les Camélias – Suivi technique
 
-Application de signalement et de suivi technique de la résidence Les Caméliats.
+Application de signalement et de suivi technique de la résidence Les Camélias.
 Site statique (un fichier `index.html`) branché sur une base Supabase partagée.
 
 ## Contenu
