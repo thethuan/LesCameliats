@@ -139,3 +139,18 @@ Le lien **Aide** ouvre un menu : revoir le tutoriel, guide résident (tous les c
 (Conseil syndical et syndic). Les guides sont des fichiers HTML rangés dans l'espace privé `plans` (`guides/residents.html`,
 `guides/conseil.html`) : ils montrent les plans de l'immeuble, donc ils ne sont jamais publiés sur le site public.
 L'administrateur les dépose dans *Administration > Guides illustrés* ; ils s'affichent dans un cadre isolé (iframe `sandbox`, sans script).
+
+## Notifications sur téléphone (21/11/2026)
+
+* Patch : `supabase/patches/2026-11-21_notifications.sql` (inclus dans `schema.sql`). Test : `supabase/tests/07_notifications.sql`
+  (lancer d'abord `00b_faux_pg_net.sql`, qui simule `pg_net` et `service_role`, puis `schema.sql` sans la ligne `create extension … pg_net`).
+* Fonction Supabase : `supabase/functions/notify/index.ts`, à déployer sous le nom **notify** (Edge Functions > Deploy a new function > Via Editor).
+  Aucun secret à saisir : elle crée elle-même ses clés VAPID dans `push_config`, table inaccessible depuis le navigateur.
+  Chiffrement des messages selon la RFC 8291 (aes128gcm), vérifié avec le vecteur de test officiel de la RFC.
+* Qui : Conseil syndical et syndic, sur chaque appareil où ils activent les notifications (bouton cloche). Chacun choisit :
+  nouveau signalement, signalement urgent, demande d'accès (Conseil syndical seulement), changement de statut.
+  Jamais pour ses propres actions ; jamais pour les imports WhatsApp/JSON.
+* Comment : un déclencheur appelle la fonction via `pg_net` avec un secret partagé ; une erreur d'envoi ne bloque jamais l'enregistrement.
+  Un appareil désinscrit (réponse 404/410 du service de notification) est oublié automatiquement.
+* Le site est installable (manifeste, icônes, `sw.js`). Sur iPhone, les notifications exigent d'ajouter le site à l'écran d'accueil (iOS 16.4+).
+  `sw.js` ne met rien en cache : il sert uniquement à afficher les notifications et à ouvrir le bon signalement (`#t12`, `#admin`).
