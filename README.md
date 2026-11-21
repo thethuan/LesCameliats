@@ -154,3 +154,12 @@ L'administrateur les dépose dans *Administration > Guides illustrés* ; ils s'a
   Un appareil désinscrit (réponse 404/410 du service de notification) est oublié automatiquement.
 * Le site est installable (manifeste, icônes, `sw.js`). Sur iPhone, les notifications exigent d'ajouter le site à l'écran d'accueil (iOS 16.4+).
   `sw.js` ne met rien en cache : il sert uniquement à afficher les notifications et à ouvrir le bon signalement (`#t12`, `#admin`).
+
+## Plan sur téléphone (21/11/2026)
+
+* L'onglet « Plan de l'immeuble » ouvre le plan en plein écran : barre du haut (retour à la liste, étage, légende « ? »), étages en bas sous le pouce, boutons + / −.
+* **Portrait** : le plan est tourné d'un quart de tour (`transform` sur `#planWrap`, dans le cadre `#planRot`) et occupe toute la largeur ; « − » montre l'étage entier.
+  **Paysage** : plan dans son sens normal, étage entier. Les grandes marges blanches des images sont retirées (`PLAN_BAND`, mesuré sur chaque plan).
+* Les pastilles restent droites (contre-rotation autour de leur pointe) ; `planPoint()` convertit le point touché dans les deux sens, pour signaler et pour déplacer.
+* Toucher une pastille ouvre une petite carte en bas (état, titre, « Voir la fiche ») au lieu de recouvrir le plan.
+* Le mode « téléphone » s'applique sous 760 px de large, et aussi aux téléphones tenus en paysage (hauteur ≤ 500 px, écran tactile).

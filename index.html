@@ -208,6 +208,8 @@ textarea.code{font-family:var(--f-mono);font-size:12px;min-height:170px}
 .guide-bar{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:10px max(14px,env(safe-area-inset-right,0px)) 10px max(14px,env(safe-area-inset-left,0px));padding-top:calc(10px + env(safe-area-inset-top,0px));border-bottom:1px solid var(--line)}
 .guide-frame{flex:1;width:100%;border:0;background:#fff}
 .steps{margin:6px 0;padding-left:1.3em;display:flex;flex-direction:column;gap:4px}
+.plan-rot{position:relative}
+.pm-bar,.pm-zoom,.pm-card,.pm-legend{display:none}
 .mbar{display:none}
 .btn.big{min-height:54px;font-size:16px;font-weight:700;justify-content:center;border-radius:12px}
 .pgrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
@@ -231,8 +233,34 @@ details.notice summary{cursor:pointer;font-weight:600;min-height:28px;display:fl
 details.notice summary::after{content:"Détails";font-weight:500;text-decoration:underline;font-size:12px}
 details.notice[open] summary::after{content:"Fermer"}
 details.notice p{margin:6px 0 2px}
-@media (max-width:760px){
+@media (max-width:760px), (max-height:500px) and (pointer:coarse){
   .main{grid-template-columns:minmax(0,1fr);gap:12px;padding-block:12px}
+  body.planmode{overflow:hidden}
+  body.planmode .plan-card{position:fixed;inset:0;z-index:30;border-radius:0;border:0;padding:0;gap:0;background:var(--surface)}
+  body.planmode .plan-head,body.planmode .hint{display:none}
+  body.planmode .pm-bar{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:calc(8px + env(safe-area-inset-top,0px)) max(10px,env(safe-area-inset-right,0px)) 8px max(10px,env(safe-area-inset-left,0px));border-bottom:1px solid var(--line);background:var(--surface)}
+  .pm-title{display:flex;flex-direction:column;align-items:center;text-align:center;min-width:0;line-height:1.25}
+  .pm-title b{font-size:16px;font-weight:800}
+  .pm-title small{font-size:11.5px;color:var(--muted)}
+  body.planmode .plan-scroll{flex:1;height:auto;max-height:none;min-height:0;border:0;border-radius:0;margin-bottom:var(--lvh,66px);background:var(--surface)}
+  body.planmode .levels{position:fixed;left:0;right:0;top:auto;bottom:0;z-index:31;border-radius:0;border-width:1px 0 0;padding:6px max(6px,env(safe-area-inset-right,0px)) calc(6px + env(safe-area-inset-bottom,0px)) max(6px,env(safe-area-inset-left,0px))}
+  body.planmode .pm-zoom{display:flex;flex-direction:column;gap:8px;position:fixed;right:max(12px,env(safe-area-inset-right,0px));bottom:calc(var(--lvh,66px) + 12px);z-index:32}
+  .pm-zoom button{width:44px;height:44px;border-radius:12px;border:1px solid var(--line);background:var(--surface);color:var(--fg);font-size:22px;font-weight:600;box-shadow:0 2px 6px rgba(0,0,0,.14)}
+  .pm-zoom button:disabled{opacity:.4}
+  body.planmode .pm-legend:not([hidden]){display:flex;flex-direction:column;gap:6px;position:fixed;right:max(10px,env(safe-area-inset-right,0px));top:calc(66px + env(safe-area-inset-top,0px));z-index:33;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:12px 14px;box-shadow:0 8px 24px rgba(20,22,40,.18);font-size:13px}
+  .pm-legend span{display:flex;align-items:center;gap:8px}
+  .pm-legend i{width:14px;height:14px;border:1.5px solid;border-radius:3px;flex:none}
+  .pm-legend i.dot{border:0;border-radius:50%}
+  .pm-legend b{font-size:12px;letter-spacing:.04em;text-transform:uppercase;color:var(--muted);margin-top:4px}
+  body.planmode .pm-card:not([hidden]){display:flex;flex-direction:column;gap:8px;position:fixed;left:0;right:0;bottom:0;z-index:34;background:var(--surface);border-radius:18px 18px 0 0;box-shadow:0 -6px 24px rgba(20,22,40,.2);padding:10px max(16px,env(safe-area-inset-right,0px)) calc(16px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px))}
+  .pm-card .grab{width:40px;height:5px;border-radius:99px;background:var(--line);align-self:center}
+  .pm-card .t{font-size:17px;font-weight:800;line-height:1.3}
+  .pm-card .l{font-size:13.5px;color:var(--muted)}
+  .pm-card .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  .pm-card .acts{display:flex;gap:8px}
+  .pm-card .acts .btn{min-height:48px;justify-content:center}
+  .pm-card .acts .primary{flex:1}
+  .plan-rot.rot .pin{transform:translate(-50%,-100%) rotate(-90deg) scale(1.45)}
   .mbar{display:flex;flex-direction:column;gap:10px}
   .mbar .seg{display:grid;grid-template-columns:1fr 1fr}
   #aNew,#scopeSeg,.tools,.legend{display:none}
@@ -245,7 +273,6 @@ details.notice p{margin:6px 0 2px}
   .chip{min-height:44px;padding:0 14px;font-size:13.5px}
   .seg button{min-height:44px;font-size:13.5px}
   .btn{min-height:44px}
-  body.planmode .plan-scroll{max-height:none;height:calc(100dvh - 330px);min-height:300px}
   .pin{transform:translate(-50%,-100%) scale(1.45);transform-origin:50% 100%}
   body:not(.gated) .rgpd-fab{position:static;justify-content:center;width:max-content;margin:4px auto 18px;background:none;font-size:13px;opacity:1;gap:20px}
   body:not(.gated) .rgpd-fab .lnk{min-height:44px}
@@ -329,6 +356,11 @@ body.locked .main{filter:blur(9px) grayscale(.5);pointer-events:none;user-select
   </nav>
 
   <section class="panel plan-card" aria-label="Plan du niveau">
+    <div class="pm-bar" id="pmBar">
+      <button class="btn" type="button" id="pmBack"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px"><path d="M15 5l-7 7 7 7"/></svg> Liste</button>
+      <div class="pm-title"><b id="pmTitle"></b><small id="pmSub"></small></div>
+      <button class="btn" type="button" id="pmLegBtn" aria-label="Légende des couleurs" aria-expanded="false" style="width:44px;justify-content:center;font-weight:700">?</button>
+    </div>
     <div class="plan-head">
       <div><h2 id="lvlTitle"></h2><p id="lvlSub"></p></div>
       <div class="tools">
@@ -346,11 +378,25 @@ body.locked .main{filter:blur(9px) grayscale(.5);pointer-events:none;user-select
       </div>
     </div>
     <div class="plan-scroll" id="planScroll">
+      <div class="plan-rot" id="planRot">
       <div class="plan-wrap" id="planWrap">
         <canvas id="planCv" width="2752" height="1536" aria-label="Plan architectural du niveau"></canvas>
         <div class="pins" id="pins"></div>
       </div>
+      </div>
     </div>
+    <div class="pm-zoom" id="pmZoom"><button type="button" data-d="1" aria-label="Agrandir le plan">+</button><button type="button" data-d="-1" aria-label="Réduire le plan">−</button></div>
+    <div class="pm-legend" id="pmLegend" hidden>
+      <b>Pastilles</b>
+      <span><i class="dot" style="background:#DC2626"></i>Signalé</span><span><i class="dot" style="background:#D97706"></i>En cours</span><span><i class="dot" style="background:#16A34A"></i>Résolu</span>
+      <b>Plan</b>
+      <span><i style="background:#C4B5FD;border-color:#6D28D9"></i>Escaliers &amp; ascenseurs</span>
+      <span><i style="background:#BAE6FD;border-color:#0284C7"></i>Pièces d'eau</span>
+      <span><i style="background:#FED7AA;border-color:#EA580C"></i>Circulations communes</span>
+      <span><i style="background:#BBF7D0;border-color:#16A34A"></i>Locaux techniques &amp; jardin</span>
+      <span><i style="background:#F8FAFC;border-color:#334155"></i>Pièces sèches</span>
+    </div>
+    <div class="pm-card" id="pmCard" hidden></div>
     <div class="legend">
       <span><i style="background:#C4B5FD;border-color:#6D28D9"></i>Escaliers &amp; ascenseurs</span>
       <span><i style="background:#BAE6FD;border-color:#0284C7"></i>Pièces d'eau</span>
@@ -606,7 +652,7 @@ function renderLevels(){
   $("#levels").innerHTML=FLOORS.map(f=>{
     const n=vt.filter(t=>t.floor===f.id&&t.status!=="resolved").length;
     return `<button class="lvl" data-f="${f.id}" aria-current="${f.id===UI.floor}"><span class="idx">${SHORT[f.id]}</span><span class="nm">${f.label}<small>${esc(f.sub.split(",")[0])}</small></span><span class="cnt ${n?"":"zero"}">${n}</span></button>`;}).join("");
-  $("#levels").querySelectorAll(".lvl").forEach(b=>b.onclick=()=>{UI.floor=Number(b.dataset.f);UI.temp=null;renderAll();});
+  $("#levels").querySelectorAll(".lvl").forEach(b=>b.onclick=()=>{UI.floor=Number(b.dataset.f);UI.temp=null;UI.pz=null;hidePinCard();renderAll();fitPlan();});
 }
 function renderPlanHead(){
   const f=floorOf(UI.floor),u=me();
@@ -623,7 +669,8 @@ function renderPins(){
   let h=vt.map(t=>{const q=pinPos(t);return `<button class="pin ${t.status}${t.masked?" priv":""}${UI.sel===t.num?" sel":""}" style="left:${q.x}%;top:${q.y}%" data-n="${t.num}" title="#${t.num} ${esc(t.title)}" aria-label="Signalement ${t.num} : ${esc(t.title)}"><span>${t.num}</span></button>`;}).join("");
   if(UI.temp&&UI.temp.floor===UI.floor) h+=`<div class="pin temp" style="left:${UI.temp.x}%;top:${UI.temp.y}%"><span>+</span></div>`;
   $("#pins").innerHTML=h;
-  $("#pins").querySelectorAll(".pin[data-n]").forEach(p=>p.onclick=e=>{e.stopPropagation();openTicket(Number(p.dataset.n));});
+  $("#pins").querySelectorAll(".pin[data-n]").forEach(p=>p.onclick=e=>{e.stopPropagation();
+    if(isPhone()&&document.body.classList.contains("planmode")&&!UI.moving) showPinCard(Number(p.dataset.n)); else openTicket(Number(p.dataset.n));});
 }
 function renderKpis(){
   const vt=visTickets(),c=s=>vt.filter(t=>t.status===s).length;
@@ -844,13 +891,12 @@ function maybeTuto(){const u=me();if(!u||u.role==="pending"||$("#scrim"))return;
 
 /* ---------- Création sur plan (RG-GEO-01) ---------- */
 $("#planWrap").addEventListener("click",e=>{
-  if(UI.moving){const r=$("#planWrap").getBoundingClientRect();
-    const x=+((e.clientX-r.left)/r.width*100).toFixed(2),y=+((e.clientY-r.top)/r.height*100).toFixed(2);
-    openMove(x,y);return;}
+  if(UI.moving){const {x,y}=planPoint(e);openMove(x,y);return;}
   if(e.target.closest(".pin[data-n]")) return;
+  if(!$("#pmCard").hidden){hidePinCard();return;}
+  if(!$("#pmLegend").hidden){$("#pmLegend").hidden=true;return;}
   const u=me();if(!can.declare(u)){toast("Votre profil est en lecture seule.");return;}
-  const r=$("#planWrap").getBoundingClientRect();
-  const x=+((e.clientX-r.left)/r.width*100).toFixed(2),y=+((e.clientY-r.top)/r.height*100).toFixed(2);
+  const {x,y}=planPoint(e);
   const zone=classify(UI.floor,Math.round(x*13.76),Math.round(y*7.68))||PALETTE[4];
   if(u.role==="resident"){
     const f=floorOf(UI.floor),cage=cageFromX(x,UI.floor);let pre;
@@ -867,16 +913,67 @@ $("#planWrap").addEventListener("click",e=>{
 });
 
 /* ---------- Affichage sur téléphone : liste d'abord, plan en grand à la demande ---------- */
-const isPhone=()=>window.matchMedia("(max-width:760px)").matches;
-function fitPlan(){const w=$("#planWrap"),sc=$("#planScroll");
-  if(isPhone()&&document.body.classList.contains("planmode")){const h=sc.clientHeight;if(h>0){const W=Math.round(h*1376/768),u=S.me,cx=((UI.floor===6?CAGE_X6:CAGE_X)[u&&u.cage]||50)/100;w.style.width=W+"px";sc.scrollLeft=Math.max(0,W*cx-sc.clientWidth/2);}}
-  else w.style.width=(UI.zoom*100)+"%";}
-function setView(v){document.body.classList.toggle("planmode",v==="plan");
+const isPhone=()=>window.matchMedia("(max-width:760px), (max-height:500px) and (pointer:coarse)").matches;
+const isPortrait=()=>window.matchMedia("(orientation: portrait)").matches;
+/* Bande utile de chaque plan (part de la hauteur de l'image) : on ne montre pas les grandes marges blanches. */
+const PLAN_BAND={p01:[.01,1],p02:[0,1],p03:[0,.9],p04:[.145,.9],p05:[.175,.96],p06:[.185,.99],p07:[.125,.945],p08:[.195,.965],p09:[.15,.885]};
+let PZ=[1,1.6,2.4];UI.pz=null;UI.rotated=false;
+/* Sur téléphone, le plan occupe tout l'écran. En portrait il est tourné d'un quart de tour pour tenir en entier. */
+function fitPlan(keepCenter){
+  const w=$("#planWrap"),rot=$("#planRot"),sc=$("#planScroll");
+  const phonePlan=isPhone()&&document.body.classList.contains("planmode");
+  if(!phonePlan){rot.removeAttribute("style");rot.classList.remove("rot");["position","left","top","transform","transformOrigin"].forEach(k=>w.style[k]="");
+    w.style.width=(UI.zoom*100)+"%";UI.rotated=false;return;}
+  const lv=document.querySelector(".levels");document.body.style.setProperty("--lvh",(lv?lv.offsetHeight:66)+"px");
+  const Wc=sc.clientWidth,Hc=sc.clientHeight;if(!Wc||!Hc)return;
+  const f=floorOf(UI.floor),[b0,b1]=PLAN_BAND[f.img]||[0,1],band=b1-b0,R=768/1376,rotate=isPortrait();
+  const fx=keepCenter&&sc.scrollWidth?(sc.scrollLeft+Wc/2)/sc.scrollWidth:null,fy=keepCenter&&sc.scrollHeight?(sc.scrollTop+Hc/2)/sc.scrollHeight:null;
+  /* niveaux de zoom : tout l'étage, toute la largeur de l'écran, puis plus grand */
+  const fitAll=rotate?Math.min(Wc/(band*R),Hc):Math.min(Wc,Hc/(band*R)),fitW=rotate?Wc/(band*R):Wc;
+  PZ=fitW>fitAll*1.08?[fitAll,fitW,fitW*1.6]:[fitAll,fitAll*1.6,fitAll*2.4];
+  if(UI.pz==null)UI.pz=rotate?1:0;
+  const W=Math.round(PZ[UI.pz]),H=W*R,vw=Math.round(rotate?band*H:W),vh=Math.round(rotate?W:band*H);
+  Object.assign(w.style,{position:"absolute",left:"0",top:"0",width:W+"px",transformOrigin:"0 0",transform:rotate?`translateX(${b1*H}px) rotate(90deg)`:`translateY(${-b0*H}px)`});
+  Object.assign(rot.style,{width:vw+"px",height:vh+"px",overflow:"hidden",margin:`${Math.max(0,Math.round((Hc-vh)/2))}px ${Math.max(0,Math.round((Wc-vw)/2))}px`});
+  rot.classList.toggle("rot",rotate);UI.rotated=rotate;
+  if(fx!=null){sc.scrollLeft=fx*sc.scrollWidth-Wc/2;sc.scrollTop=fy*sc.scrollHeight-Hc/2;}
+  else{const u=S.me,cx=((UI.floor===6?CAGE_X6:CAGE_X)[u&&u.cage]||50)/100;
+    if(rotate)sc.scrollTop=cx*vh-Hc/2;else sc.scrollLeft=cx*vw-Wc/2;}
+  const n=visTickets().filter(t=>t.floor===UI.floor&&t.status!=="resolved").length;
+  $("#pmTitle").textContent=f.label;
+  $("#pmSub").textContent=rotate?"Plan tourné · tournez le téléphone pour le voir droit":`${n} incident${n>1?"s":""} en cours à cet étage`;
+  $("#pmZoom").querySelector('[data-d="1"]').disabled=UI.pz>=PZ.length-1;$("#pmZoom").querySelector('[data-d="-1"]').disabled=UI.pz<=0;
+}
+/* Point touché sur le plan, en % de l'image d'origine (le plan peut être tourné) */
+function planPoint(e){const r=$("#planWrap").getBoundingClientRect();
+  if(UI.rotated) return {x:+((e.clientY-r.top)/r.height*100).toFixed(2),y:+((r.right-e.clientX)/r.width*100).toFixed(2)};
+  return {x:+((e.clientX-r.left)/r.width*100).toFixed(2),y:+((e.clientY-r.top)/r.height*100).toFixed(2)};}
+/* Petite carte en bas quand on touche une pastille sur téléphone : le plan reste visible */
+function hidePinCard(){const c=$("#pmCard");if(c&&!c.hidden){c.hidden=true;if(UI.sel){UI.sel=null;renderPins();}}}
+function showPinCard(n){
+  const t=S.tickets.find(x=>x.num===n);if(!t)return;
+  UI.sel=n;renderPins();$("#pmLegend").hidden=true;
+  const c=$("#pmCard"),days=Math.round((Date.now()-new Date(t.date+"T12:00"))/864e5);
+  c.innerHTML=`<span class="grab" aria-hidden="true"></span>
+    <div class="row"><span class="pill ${t.status}">${STAT[t.status]}</span>${t.urgency==="high"?`<b style="color:var(--reported);font-size:12.5px">Urgent</b>`:""}<span class="ro" style="font-size:12.5px">${days<=0?"aujourd'hui":days===1?"hier":`il y a ${days} jours`}</span></div>
+    <div class="t">#${t.num} · ${esc(t.title)}</div><div class="l">${esc(t.location)}</div>
+    <div class="acts"><button type="button" class="btn primary" id="pcOpen">Voir la fiche</button><button type="button" class="btn" id="pcClose">Fermer</button></div>`;
+  c.hidden=false;
+  $("#pcOpen").onclick=()=>{c.hidden=true;openTicket(n);};
+  $("#pcClose").onclick=hidePinCard;
+}
+["pmZoom","pmLegend","pmCard"].forEach(id=>document.body.appendChild($("#"+id)));   // au-dessus de la barre des étages
+$("#pmBack").onclick=()=>setView("list");
+$("#pmLegBtn").onclick=()=>{const l=$("#pmLegend");l.hidden=!l.hidden;$("#pmLegBtn").setAttribute("aria-expanded",String(!l.hidden));if(!l.hidden)hidePinCard();};
+$("#pmLegend").onclick=()=>{$("#pmLegend").hidden=true;$("#pmLegBtn").setAttribute("aria-expanded","false");};
+$("#pmZoom").querySelectorAll("button").forEach(b=>b.onclick=()=>{UI.pz=Math.max(0,Math.min(PZ.length-1,UI.pz+Number(b.dataset.d)));fitPlan(true);});
+window.matchMedia("(orientation: portrait)").addEventListener?.("change",()=>{UI.pz=null;fitPlan();});
+function setView(v){document.body.classList.toggle("planmode",v==="plan");hidePinCard();$("#pmLegend").hidden=true;
   $("#viewSeg").querySelectorAll("button").forEach(b=>b.setAttribute("aria-pressed",b.dataset.v===v));
   if(isPhone()&&v!=="plan"&&UI.scope!=="all"){UI.scope="all";renderList();}
   fitPlan();if(v==="plan")window.scrollTo({top:0});}
 $("#viewSeg").querySelectorAll("button").forEach(b=>b.onclick=()=>setView(b.dataset.v));
-window.addEventListener("resize",fitPlan);
+window.addEventListener("resize",()=>fitPlan());
 if(isPhone()) UI.scope="all";
 
 /* ---------- Photos : réduction avant envoi, liens signés, envoi, retrait ---------- */
@@ -1090,7 +1187,7 @@ function openCreate(zone,x,y){
 
 /* ---------- Déplacer un incident (CS et syndic) ---------- */
 function startMove(n){
-  UI.moving=n;closeSheet();document.body.classList.add("moving");
+  UI.moving=n;closeSheet();document.body.classList.add("moving");if(isPhone())setView("plan");
   let b=$("#moveBar");if(!b){b=document.createElement("div");b.id="moveBar";document.body.appendChild(b);}
   b.innerHTML=`<span>Déplacer #${n} : choisissez l'étage, puis cliquez sur le bon endroit du plan.</span> <button class="btn" id="moveNo" type="button">Annuler</button>`;
   $("#moveNo").onclick=endMove;
